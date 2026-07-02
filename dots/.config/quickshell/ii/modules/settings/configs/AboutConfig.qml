@@ -31,11 +31,11 @@ ContentPage {
     Process {
         id: checkUpdatesProc
         command: ["bash", "-c", "fork_dir=\"$HOME/Downloads/ii-vynx\"; [ ! -d \"$fork_dir/.git\" ] && fork_dir=\"$HOME/.local/share/ii-vynx-fork\"; [ ! -d \"$fork_dir/.git\" ] && fork_dir=\"$HOME/.config/quickshell/ii-vynx-repo\"; upstream_dir=\"$HOME/.local/share/ii-vynx-upstream\"; fork_updates=0; [ -d \"$fork_dir/.git\" ] && { git -C \"$fork_dir\" fetch --quiet origin 2>/dev/null; fork_updates=$(git -C \"$fork_dir\" rev-list --count HEAD..@{u} 2>/dev/null || echo 0); }; upstream_updates=0; [ -d \"$upstream_dir/.git\" ] && { git -C \"$upstream_dir\" fetch --quiet origin 2>/dev/null; upstream_updates=$(git -C \"$upstream_dir\" rev-list --count HEAD..@{u} 2>/dev/null || echo 0); }; echo \"$fork_updates $upstream_updates\""]
-        
+
         onStarted: {
             page.checkingUpdates = true;
         }
-        
+
         stdout: StdioCollector {
             onStreamFinished: {
                 var parts = text.trim().split(" ");
@@ -113,7 +113,7 @@ ContentPage {
                 bottomRightRadius: Appearance.rounding.verysmall
                 title: Translation.tr("Distro Info")
                 icon: "developer_board"
-                
+
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12
@@ -156,7 +156,7 @@ ContentPage {
                 bottomRightRadius: Appearance.rounding.verysmall
                 title: Translation.tr("Parent-Dots Info")
                 icon: "account_tree"
-                
+
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12
@@ -193,53 +193,10 @@ ContentPage {
             ContentSubsection {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.columnSpan: 2
                 topLeftRadius: Appearance.rounding.verysmall
                 topRightRadius: Appearance.rounding.verysmall
                 bottomLeftRadius: Appearance.rounding.large
-                bottomRightRadius: Appearance.rounding.verysmall
-                title: Translation.tr("Upstream Info")
-                icon: "code"
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-                    Layout.topMargin: 10
-                    Layout.bottomMargin: 10
-                    CustomIcon {
-                        width: 50
-                        height: 50
-                        source: "stelnet"
-                    }
-                    ColumnLayout {
-                        Layout.alignment: Qt.AlignVCenter
-                        StyledText {
-                            text: Translation.tr("Upstream (ii-vynx)")
-                            font.pixelSize: Appearance.font.pixelSize.normal
-                            font.weight: Font.Bold
-                        }
-                        StyledText {
-                            text: "<a href='https://github.com/vaguesyntax/ii-vynx'>github.com/vaguesyntax/ii-vynx</a>"
-                            font.pixelSize: Appearance.font.pixelSize.small
-                            textFormat: Text.RichText
-                            onLinkActivated: link => Qt.openUrlExternally(link)
-                            PointingHandLinkHover {}
-                        }
-                    }
-                }
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: 5
-                    RippleButtonWithIcon { materialIcon: "auto_stories"; mainText: Translation.tr("Wiki"); onClicked: Qt.openUrlExternally("https://github.com/vaguesyntax/ii-vynx/wiki") }
-                    RippleButtonWithIcon { materialIcon: "adjust"; materialIconFill: false; mainText: Translation.tr("Issues"); onClicked: Qt.openUrlExternally("https://github.com/vaguesyntax/ii-vynx/issues") }
-                }
-            }
-
-            ContentSubsection {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                topLeftRadius: Appearance.rounding.verysmall
-                topRightRadius: Appearance.rounding.verysmall
-                bottomLeftRadius: Appearance.rounding.verysmall
                 bottomRightRadius: Appearance.rounding.large
                 title: Translation.tr("StelOS")
                 icon: "call_split"
@@ -264,7 +221,7 @@ ContentPage {
                             font.weight: Font.Bold
                         }
                         StyledText {
-                            text: "<a href='https://github.com/stelnetxcis-create/ii-stelos'>github.com/stelnetxcis-create/...</a>"
+                            text: "<a href='https://github.com/stelnetxcis-create/stelos'>github.com/stelnetxcis-create/stelos</a>"
                             font.pixelSize: Appearance.font.pixelSize.small
                             textFormat: Text.RichText
                             onLinkActivated: link => Qt.openUrlExternally(link)
@@ -275,8 +232,8 @@ ContentPage {
                 Flow {
                     Layout.fillWidth: true
                     spacing: 5
-                    RippleButtonWithIcon { materialIcon: "code"; mainText: Translation.tr("GitHub"); onClicked: Qt.openUrlExternally("https://github.com/stelnetxcis-create/ii-stelos") }
-                    RippleButtonWithIcon { materialIcon: "adjust"; materialIconFill: false; mainText: Translation.tr("Issues"); onClicked: Qt.openUrlExternally("https://github.com/stelnetxcis-create/ii-stelos/issues") }
+                    RippleButtonWithIcon { materialIcon: "code"; mainText: Translation.tr("GitHub"); onClicked: Qt.openUrlExternally("https://github.com/stelnetxcis-create/stelos") }
+                    RippleButtonWithIcon { materialIcon: "adjust"; materialIconFill: false; mainText: Translation.tr("Issues"); onClicked: Qt.openUrlExternally("https://github.com/stelnetxcis-create/stelos/issues") }
                 }
             }
         }
@@ -314,7 +271,7 @@ ContentPage {
                             implicitWidth: badgeText.implicitWidth + 8
                             implicitHeight: 18
                             Layout.alignment: Qt.AlignVCenter
-                            
+
                             StyledText {
                                 id: badgeText
                                 anchors.centerIn: parent
@@ -333,48 +290,6 @@ ContentPage {
                         actionProc.exitCode = -1;
                         actionProc.mode = "update-fork";
                         actionProc.command = ["bash", page.setupScript, "--update-only", "--no-confirm"];
-                        actionProc.running = true;
-                    }
-                }
-
-                RippleButtonWithIcon {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 45
-                    buttonRadius: Appearance.rounding.large
-                    materialIcon: actionProc.running && actionProc.mode === "update-upstream" ? "sync" : "cloud_download"
-                    mainContentComponent: RowLayout {
-                        spacing: 8
-                        StyledText {
-                            text: actionProc.running && actionProc.mode === "update-upstream" ? Translation.tr("Updating...") : Translation.tr("Update Upstream")
-                            font.pixelSize: Appearance.font.pixelSize.small
-                            color: Appearance.colors.colOnSecondaryContainer
-                        }
-                        Rectangle {
-                            visible: page.upstreamUpdates > 0
-                            radius: 10
-                            color: Appearance.colors.colError
-                            implicitWidth: badgeText2.implicitWidth + 8
-                            implicitHeight: 18
-                            Layout.alignment: Qt.AlignVCenter
-                            
-                            StyledText {
-                                id: badgeText2
-                                anchors.centerIn: parent
-                                text: page.upstreamUpdates
-                                font.pixelSize: Appearance.font.pixelSize.verysmall
-                                font.weight: Font.Bold
-                                color: Appearance.colors.colOnError
-                            }
-                        }
-                    }
-                    enabled: !actionProc.running
-                    onClicked: {
-                        Config.blockWrites = true;
-                        actionProc.logOutput = "";
-                        actionProc.finished = false;
-                        actionProc.exitCode = -1;
-                        actionProc.mode = "update-upstream";
-                        actionProc.command = ["bash", page.setupScript, "--update-only", "--ii-vynx", "--no-confirm"];
                         actionProc.running = true;
                     }
                 }
@@ -444,52 +359,6 @@ ContentPage {
             }
         }
 
-        ContentSubsection {
-            title: Translation.tr("Source Switcher")
-            icon: "swap_horiz"
-            tooltip: Translation.tr("Switch between sources using local repos — no network required")
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-
-                RippleButtonWithIcon {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 45
-                    buttonRadius: Appearance.rounding.small
-                    colBackground: page.activeRemote.indexOf("stelnetxcis-create") !== -1 ? Appearance.colors.colSecondaryContainer : Appearance.colors.colLayer2
-                    materialIcon: "fork_right"
-                    mainText: {
-                        if (page.activeRemote.indexOf("stelnetxcis-create") !== -1) return Translation.tr("Current (My Fork)");
-                        return Translation.tr("Switch to StelOS");
-                    }
-                    enabled: !actionProc.running && page.activeRemote.indexOf("stelnetxcis-create") === -1
-                    onClicked: {
-                        Config.blockWrites = true;
-                        Quickshell.execDetached(["bash", page.setupScript, "--force-install", "--no-pull", "--no-confirm", "--preserve-config"]);
-                    }
-                }
-
-                RippleButtonWithIcon {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 45
-                    buttonRadius: Appearance.rounding.small
-                    colBackground: page.activeRemote.indexOf("vaguesyntax") !== -1 ? Appearance.colors.colSecondaryContainer : Appearance.colors.colLayer2
-                    materialIcon: "deployed_code"
-                    mainText: {
-                        if (page.activeRemote.indexOf("vaguesyntax") !== -1) return Translation.tr("Current (Upstream)");
-                        return Translation.tr("Switch to Upstream");
-                    }
-                    enabled: !actionProc.running && page.activeRemote.indexOf("vaguesyntax") === -1
-                    onClicked: {
-                        Config.blockWrites = true;
-                        Quickshell.execDetached(["bash", page.setupScript, "--force-install", "--no-pull", "--no-confirm", "--ii-vynx", "--preserve-config"]);
-                    }
-                }
-            }
-        }
-
-
     }
 
     ContentSection {
@@ -521,7 +390,7 @@ ContentPage {
                     model: ChangelogService.commits
                     delegate: Rectangle {
                         id: entryRoot
-                        
+
                         readonly property int itemIndex: {
                             var p = parent;
                             if (!p) return 0;
@@ -551,7 +420,7 @@ ContentPage {
                         bottomLeftRadius: isFirst ? Appearance.rounding.large : Appearance.rounding.verysmall
                         bottomRightRadius: isFirst ? Appearance.rounding.large : Appearance.rounding.verysmall
 
-                        
+
                         readonly property string commitHash: model.hash
                         readonly property string commitTitle: model.title
                         readonly property string commitDescription: model.description
@@ -559,7 +428,7 @@ ContentPage {
 
                         Layout.fillWidth: true
                         Layout.preferredHeight: layout.implicitHeight + 24
-                        
+
                         radius: Appearance.rounding.large
                         color: Appearance.colors.colLayer2
                         border.width: 0
