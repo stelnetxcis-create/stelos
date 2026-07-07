@@ -44,11 +44,33 @@ Singleton {
         }
     ]
 
-    // Deduped list to fix double icons, pre-sorted alphabetically to avoid sorting on every query
-    readonly property list<DesktopEntry> list: {
+    // Unfiltered - used by the settings picker UI so you can (de)select apps
+    // even while appWhitelistEnabled is filtering the real `list` above.
+    readonly property list<DesktopEntry> allApps: {
         var arr = Array.from(DesktopEntries.applications.values).filter((app, index, self) => index === self.findIndex(t => (t.id === app.id)));
         arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
         return arr;
+    }
+
+    // Deduped list to fix double icons, pre-sorted alphabetically to avoid sorting on every query
+    readonly property list<DesktopEntry> list: {
+        var arr = Array.from(DesktopEntries.applications.values).filter((app, index, self) => index === self.findIndex(t => (t.id === app.id)));
+        if (Config.options?.search.appWhitelistEnabled) {
+            const allowed = new Set(Config.options.search.appWhitelist);
+            arr = arr.filter(app => allowed.has(app.id));
+        }
+        arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        return arr;
+    }
+
+    function toggleWhitelisted(appId: string) {
+        const current = Config.options.search.appWhitelist;
+        const idx = current.indexOf(appId);
+        if (idx === -1) {
+            Config.options.search.appWhitelist = current.concat([appId]);
+        } else {
+            Config.options.search.appWhitelist = current.slice(0, idx).concat(current.slice(idx + 1));
+        }
     }
 
     readonly property var preppedNames: list.map(a => ({

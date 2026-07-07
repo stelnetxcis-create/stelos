@@ -158,12 +158,72 @@ ContentPage {
 
                 Item { implicitHeight: 8 }
 
-                ConfigTextField {
-                    text: Translation.tr("Your name")
-                    icon: "badge"
-                    placeholderText: Translation.tr("Leave empty for system username")
-                    inputText: Config.options.userProfile.customName
-                    textField.onTextChanged: Config.options.userProfile.customName = textField.text
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    ConfigTextField {
+                        Layout.fillWidth: true
+                        text: Translation.tr("Your name")
+                        icon: "badge"
+                        placeholderText: Translation.tr("Leave empty for system username")
+                        inputText: Config.options.userProfile.customName
+                        textField.onTextChanged: Config.options.userProfile.customName = textField.text
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 6
+                    visible: true
+
+                    Rectangle {
+                        implicitHeight: 24
+                        implicitWidth: roleBadgeRow.implicitWidth + 20
+                        radius: Appearance.rounding.full
+                        border.width: StelosAccessService.isOwner ? 1 : 0
+                        border.color: Appearance.colors.colPrimary
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop {
+                                position: 0.0
+                                color: StelosAccessService.isOwner
+                                    ? Appearance.colors.colPrimaryContainer
+                                    : Appearance.colors.colSecondaryContainer
+                            }
+                            GradientStop {
+                                position: 1.0
+                                color: StelosAccessService.isOwner
+                                    ? Qt.lighter(Appearance.colors.colPrimaryContainer, 1.12)
+                                    : Appearance.colors.colSecondaryContainer
+                            }
+                        }
+
+                        RowLayout {
+                            id: roleBadgeRow
+                            anchors.centerIn: parent
+                            spacing: 5
+
+                            MaterialSymbol {
+                                text: StelosAccessService.isOwner ? "verified_user" : "person"
+                                iconSize: 14
+                                color: StelosAccessService.isOwner
+                                    ? Appearance.colors.colOnPrimaryContainer
+                                    : Appearance.colors.colOnSecondaryContainer
+                            }
+                            StyledText {
+                                text: StelosAccessService.isOwner ? Translation.tr("Owner") : Translation.tr("User")
+                                font.pixelSize: Appearance.font.pixelSize.smaller
+                                font.weight: Font.DemiBold
+                                color: StelosAccessService.isOwner
+                                    ? Appearance.colors.colOnPrimaryContainer
+                                    : Appearance.colors.colOnSecondaryContainer
+                            }
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true }
                 }
 
                 ConfigTextField {

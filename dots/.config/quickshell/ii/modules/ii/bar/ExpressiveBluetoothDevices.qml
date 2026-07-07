@@ -15,6 +15,16 @@ MouseArea {
     property int deviceIndex: 0
     readonly property var primaryDevice: activeDevices.length > 0 ? activeDevices[deviceIndex % activeDevices.length] : null
     readonly property bool hasDevices: activeDevices.length > 0
+
+    function getDeviceImageSource(device) {
+        if (!device) return "";
+        let custom = Config.options.bluetoothDeviceImages.find(d => d.mac === device.address);
+        if (custom) {
+            return "file://" + Directories.shellConfig + "/bluetooth_images/" + custom.image;
+        }
+        return "";
+    }
+    readonly property string primaryDeviceImageSource: root.hasDevices ? getDeviceImageSource(root.primaryDevice) : ""
     implicitWidth: vertical ? Appearance.sizes.verticalBarWidth : layout.implicitWidth + 8
 
     implicitHeight: vertical ? layoutVert.implicitHeight + 8 : Appearance.sizes.baseBarHeight
@@ -53,8 +63,21 @@ MouseArea {
             shapeString: "Cookie7Sided"
             color: Appearance.colors.colPrimary
             implicitSize: Appearance.sizes.baseBarHeight - 8
+            clip: true
+
+            Image {
+                anchors.fill: parent
+                anchors.margins: 2
+                visible: root.primaryDeviceImageSource !== ""
+                source: root.primaryDeviceImageSource
+                fillMode: Image.PreserveAspectCrop
+                smooth: true
+                mipmap: true
+            }
+
             MaterialSymbol {
                 anchors.centerIn: parent
+                visible: root.primaryDeviceImageSource === ""
                 iconSize: Appearance.font.pixelSize.normal
                 text: root.hasDevices ? Icons.getBluetoothDeviceMaterialSymbol(root.primaryDevice.icon) : "bluetooth"
                 color: Appearance.colors.colOnPrimary

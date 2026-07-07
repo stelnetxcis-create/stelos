@@ -62,6 +62,30 @@ Singleton {
     property var hourlyData: []
     property bool forecastLoading: true
 
+    // Air quality / pollen (Open-Meteo Air Quality API, same provider as weather)
+    readonly property bool airQualityEnabled: Config.options.bar.weather.airQuality.enable
+    readonly property bool showPollen: Config.options.bar.weather.airQuality.showPollen
+    property var airQuality: ({
+        aqi: 0,
+        aqiLabel: "",
+        pm25: 0,
+        pm10: 0,
+        pollenGrass: 0,
+        pollenTree: 0,
+        pollenWeed: 0,
+        hasPollenData: false,
+        loaded: false
+    })
+
+    function usAqiLabel(aqi) {
+        if (aqi <= 50) return Translation.tr("Good");
+        if (aqi <= 100) return Translation.tr("Moderate");
+        if (aqi <= 150) return Translation.tr("Unhealthy for Sensitive Groups");
+        if (aqi <= 200) return Translation.tr("Unhealthy");
+        if (aqi <= 300) return Translation.tr("Very Unhealthy");
+        return Translation.tr("Hazardous");
+    }
+
     function wmoToWwo(wmo) {
         if (wmo === 0 || wmo === 1) return 113; // Clear
         if (wmo === 2) return 116; // Partly Cloudy
@@ -295,8 +319,47 @@ Singleton {
         xhr.send();
     }
 
+    function fetchAirQuality(lat, lon) {
+        if (!root.airQualityEnabled) return;
+        const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5,pm10,grass_pollen,alder_pollen,birch_pollen,ragweed_pollen&timezone=auto`;
+
+        const xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+                if (xhr.status === 200) {
+                    try {
+                        const res = JSON.parse(xhr.responseText);
+                        const current = res.current || {};
+                        const grass = current.grass_pollen;
+                        const weed = current.ragweed_pollen;
+                        const tree = Math.max(current.alder_pollen || 0, current.birch_pollen || 0);
+                        const aqi = current.us_aqi ?? 0;
+                        root.airQuality = {
+                            aqi: aqi,
+                            aqiLabel: root.usAqiLabel(aqi),
+                            pm25: current.pm2_5 ?? 0,
+                            pm10: current.pm10 ?? 0,
+                            pollenGrass: grass ?? 0,
+                            pollenTree: tree,
+                            pollenWeed: weed ?? 0,
+                            hasPollenData: grass !== undefined || weed !== undefined,
+                            loaded: true
+                        };
+                    } catch (e) {
+                        console.error("[WeatherService] Failed to parse air quality:", e);
+                    }
+                } else {
+                    console.error("[WeatherService] Air quality API error:", xhr.status);
+                }
+            }
+        };
+        xhr.open("GET", url);
+        xhr.send();
+    }
+
     function fetchWeather(lat, lon, cityName) {
         root.forecastLoading = true;
+        root.fetchAirQuality(lat, lon);
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m,uv_index,visibility&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,weather_code&hourly=temperature_2m,weather_code&timezone=auto`;
         
         const xhr = new XMLHttpRequest();

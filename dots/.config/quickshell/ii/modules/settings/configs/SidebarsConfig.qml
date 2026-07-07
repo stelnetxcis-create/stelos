@@ -82,7 +82,7 @@ ContentPage {
                 },
                 {
                     key: "weeb",
-                    name: Translation.tr("Weeb"),
+                    name: Translation.tr("Anime"),
                     icon: "face",
                     options: [
                         { displayName: Translation.tr("No"), icon: "close", value: 0 },

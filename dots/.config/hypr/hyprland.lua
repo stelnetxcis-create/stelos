@@ -5,47 +5,48 @@
 require("hyprland.lib")
 require("hyprland.services")
 
-local function safe_require(module_name)
-    local ok, err = pcall(require, module_name)
-    if not ok then
-        hl.exec_cmd("notify-send 'Hyprland Lua Error' 'Failed to load " .. module_name .. ": " .. tostring(err):gsub("'", "\\'") .. "' -u critical -a 'Hyprland'")
-    end
-    return ok
-end
-
 -- Environment variables --
-safe_require("hyprland.env")
+require("hyprland.env")
 if is_file_exists(HOME .. "/.config/hypr/custom/env.lua") then
-    safe_require("custom.env")
+    require("custom.env")
 end
 
 -- Default configurations --
-safe_require("hyprland.execs")
-safe_require("hyprland.general")
-safe_require("hyprland.rules")
-safe_require("hyprland.colors")
-safe_require("hyprland.keybinds")
+require("hyprland.execs")
+require("hyprland.general")
+require("hyprland.rules")
+require("hyprland.colors")
+require("hyprland.keybinds")
 
 -- Custom configurations --
-if is_file_exists(HOME .. "/.config/hypr/custom/input.lua") then
-    safe_require("custom.input")
-end
 if is_file_exists(HOME .. "/.config/hypr/custom/execs.lua") then
-    safe_require("custom.execs")
+    require("custom.execs")
 end
 if is_file_exists(HOME .. "/.config/hypr/custom/general.lua") then
-    safe_require("custom.general")
+    require("custom.general")
 end
 if is_file_exists(HOME .. "/.config/hypr/custom/rules.lua") then
-    safe_require("custom.rules")
+    require("custom.rules")
 end
 if is_file_exists(HOME .. "/.config/hypr/custom/keybinds.lua") then
-    safe_require("custom.keybinds")
+    require("custom.keybinds")
 end
-if is_file_exists(HOME .. "/.config/hypr/hyprmon.lua") then
-    require("hyprmon")
+
+-- nwg-displays support --
+if is_file_exists(HOME .. "/.config/hypr/workspaces.lua") then
+    require("workspaces")
+end
+if is_file_exists(HOME .. "/.config/hypr/monitors.lua") then
+    require("monitors")
 end
 
 -- Shell overrides --
-safe_require("hyprland.shellOverrides.main")
+require("hyprland.shellOverrides.main")
 
+-- hyprmon: managed monitor profile include
+require("hyprmon")
+
+-- ii Settings > Monitors: auto-adapt overrides (always applied last, wins over any HyprMon profile)
+if is_file_exists(HOME .. "/.config/hypr/autoadapt.lua") then
+    require("autoadapt")
+end

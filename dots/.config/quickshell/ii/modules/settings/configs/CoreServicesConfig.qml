@@ -108,6 +108,14 @@ Item {
                     description: qsTr("User agent and resource polling")
                     onOpenCard: root.openSubPage("widgets/CoreNetworkConfig.qml")
                 }
+                ServiceCard {
+                    cardIcon: "memory"
+                    cardHue: 12
+                    cardShape: "Cookie12Sided"
+                    title: qsTr("Resources Tracker")
+                    description: qsTr("Bar toggles and disk mounts")
+                    onOpenCard: root.openSubPage("SystemMonitorConfig.qml")
+                }
             }
 
             Item {

@@ -15,7 +15,7 @@ TextField {
     Material.primary: Appearance.m3colors.m3primary
     Material.background: Appearance.m3colors.m3surface
     Material.foreground: Appearance.m3colors.m3onSurface
-    Material.containerStyle: Material.Outlined
+    Material.containerStyle: Material.Filled
     renderType: Text.QtRendering
 
     selectedTextColor: Appearance.m3colors.m3onSecondaryContainer

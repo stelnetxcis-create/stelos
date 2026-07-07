@@ -454,57 +454,63 @@ StyledPopup {
             }
         }
 
-        // Disk Pill
-        Rectangle {
-            implicitWidth: 380
-            implicitHeight: 64
-            radius: Appearance.rounding.full
-            color: Appearance.colors.colSecondaryContainer
+        // Disk Pills — one per mount in Config.options.resources.diskMounts
+        Repeater {
+            model: ResourceUsage.diskList
+            delegate: Rectangle {
+                required property var modelData
+                implicitWidth: 380
+                implicitHeight: 64
+                radius: Appearance.rounding.full
+                color: Appearance.colors.colSecondaryContainer
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 12
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 12
 
-                MaterialShape {
-                    shapeString: "Circle"
-                    implicitSize: 40
-                    color: Appearance.colors.colLayer4
+                    MaterialShape {
+                        shapeString: "Circle"
+                        implicitSize: 40
+                        color: Appearance.colors.colLayer4
 
-                    MaterialSymbol {
-                        anchors.centerIn: parent
-                        text: "hard_drive"
-                        iconSize: 22
-                        color: Appearance.colors.colOnLayer4
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: "hard_drive"
+                            iconSize: 22
+                            color: Appearance.colors.colOnLayer4
+                        }
                     }
-                }
 
-                ColumnLayout {
-                    spacing: -2
+                    ColumnLayout {
+                        spacing: -2
+                        StyledText {
+                            text: modelData.mountpoint === "/" ? "DISK" : modelData.mountpoint.toUpperCase()
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            font.weight: Font.Bold
+                            color: Appearance.colors.colOnSecondaryContainer
+                            elide: Text.ElideRight
+                            Layout.maximumWidth: 180
+                        }
+                        StyledText {
+                            text: (modelData.used / (1024 * 1024 * 1024)).toFixed(1) + " GB / " + (modelData.total / (1024 * 1024 * 1024)).toFixed(0) + " GB"
+                            font.pixelSize: Appearance.font.pixelSize.normal
+                            font.weight: Font.DemiBold
+                            color: Appearance.colors.colOnSecondaryContainer
+                        }
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
                     StyledText {
-                        text: "DISK"
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                        font.weight: Font.Bold
+                        text: Math.round(modelData.usedPercentage * 100) + "%"
+                        font.pixelSize: 24
+                        font.weight: Font.Black
                         color: Appearance.colors.colOnSecondaryContainer
+                        Layout.rightMargin: 12
                     }
-                    StyledText {
-                        text: (ResourceUsage.diskUsed / (1024 * 1024 * 1024)).toFixed(1) + " GB / " + (ResourceUsage.diskTotal / (1024 * 1024 * 1024)).toFixed(0) + " GB"
-                        font.pixelSize: Appearance.font.pixelSize.normal
-                        font.weight: Font.DemiBold
-                        color: Appearance.colors.colOnSecondaryContainer
-                    }
-                }
-
-                Item {
-                    Layout.fillWidth: true
-                }
-
-                StyledText {
-                    text: Math.round(ResourceUsage.diskUsedPercentage * 100) + "%"
-                    font.pixelSize: 24
-                    font.weight: Font.Black
-                    color: Appearance.colors.colOnSecondaryContainer
-                    Layout.rightMargin: 12
                 }
             }
         }

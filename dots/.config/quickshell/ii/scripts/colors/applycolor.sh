@@ -159,7 +159,7 @@ apply_term() {
 }
 
 apply_openrgb() {
-    python "$CONFIG_DIR/scripts/colors/openRGB/apply_openrgb.py"
+    "$ILLOGICAL_IMPULSE_VIRTUAL_ENV/bin/python" "$CONFIG_DIR/scripts/colors/openRGB/apply_openrgb.py"
 }
 
 # Check if terminal theming is enabled in config
@@ -172,7 +172,7 @@ if [ -f "$CONFIG_FILE" ]; then
   fi
   if [ "$enable_openrgb" = "true" ]; then
     openrgb_duration=$(jq -r '.appearance.openrgb.fadeDuration' "$CONFIG_FILE")
-    python "$CONFIG_DIR/scripts/colors/openRGB/apply_openrgb.py" -d $openrgb_duration
+    "$ILLOGICAL_IMPULSE_VIRTUAL_ENV/bin/python" "$CONFIG_DIR/scripts/colors/openRGB/apply_openrgb.py" -d $openrgb_duration
   fi
 else
   echo "Config file not found at $CONFIG_FILE. Applying terminal theming by default."

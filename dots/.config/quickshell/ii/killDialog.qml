@@ -23,8 +23,17 @@ ApplicationWindow {
     property int conflictCount: 0
     onConflictCountChanged: {
         if (conflictCount === 0) {
-            root.close();
+            // Give Config's write timer a moment to actually flush any
+            // "Always" choice to config.json before this process quits -
+            // otherwise the setting only ever lived in memory and is lost.
+            closeTimer.restart();
         }
+    }
+
+    Timer {
+        id: closeTimer
+        interval: 300
+        onTriggered: root.close()
     }
 
     property real contentPadding: 8
@@ -36,7 +45,15 @@ ApplicationWindow {
 
     Component.onCompleted: {
         Config.readWriteDelay = 0;
-        Config.blockWrites = true;
+        // NOTE: previously set Config.blockWrites = true here and never
+        // unset it, which silently discarded every "Always" choice - the
+        // in-memory option was flipped but writeAdapter() was gated off
+        // for this process's entire lifetime, so it never reached disk.
+        // writeGuardDelay is also zeroed since this is a short-lived,
+        // single-purpose dialog process, not the main shell - the 5s
+        // hot-reload race guard doesn't apply here and would otherwise
+        // block the write for longer than the dialog stays open.
+        Config.writeGuardDelay = 0;
         MaterialThemeLoader.reapplyTheme();
     }
 

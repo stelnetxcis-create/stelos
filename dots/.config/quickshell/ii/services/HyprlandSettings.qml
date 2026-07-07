@@ -26,7 +26,7 @@ Singleton {
         Quickshell.execDetached(["hyprctl", "keyword", "animation", animName + ",1,7,menu_decel," + style]);
         // Also write to persistent config file via hyprset.sh directly
         // (vynx hyprset fails because ~/.local/bin/vynx is a symlink whose resolved
-        // basename is "setup-stelos.sh", so the CLI dispatcher never activates)
+        // basename is "setup-ii-vynx.sh", so the CLI dispatcher never activates)
         Quickshell.execDetached(["bash", Directories.home.replace("file://", "") + "/.local/share/ii-vynx/sdata/cli/lib/hyprset.sh", "anim", animName, String(style)])
     }
 

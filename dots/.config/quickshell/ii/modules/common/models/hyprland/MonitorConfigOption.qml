@@ -1,7 +1,9 @@
 pragma ComponentBehavior: Bound
 import QtQml
 import QtQuick
+import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import qs.services
 import "../"
 
@@ -9,12 +11,231 @@ NestableObject {
     id: root
     property var monitors: []
     property var profiles: []
+    property var autoAdaptNames: []
+    property bool hyprmonInstalled: true // assume present until proven otherwise, avoids a flash of the warning on every load
+    property bool edidDecodeInstalled: true // same assume-present-until-checked pattern
+    // Generic, EDID-derived capability sets. Populated per connected monitor's OWN edid
+    // via edid-decode — nothing here is keyed to any specific brand/model. Whatever's
+    // plugged in gets probed fresh; unplug it and plug in something else, that gets
+    // probed too, independently.
+    property var hdrCapableNames: []
+    property var wideGamutCapableNames: []
+    property var edidCheckedNames: []
 
     Component.onCompleted: {
         Qt.callLater(() => {
+            autoAdaptStateProc.running = true;
             fetchProc.running = true;
+            hyprmonCheckProc.running = true;
             reloadProfiles();
         });
+    }
+
+    Process {
+        id: hyprmonCheckProc
+        command: ["bash", "-c", "command -v hyprmon >/dev/null 2>&1 && echo yes || echo no"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.hyprmonInstalled = text.trim() === "yes";
+            }
+        }
+    }
+
+    // Identity for capability tracking: prefer the EDID description (survives a different
+    // monitor landing on the same port) and only fall back to the port name when no
+    // description is available. Same principle StelSync's desc: matching already uses.
+    function monitorIdentity(mon) {
+        return mon.description ? `desc:${mon.description}` : mon.name;
+    }
+
+    // Checks each newly-seen monitor's actual EDID for an HDR Static Metadata Data Block
+    // (real HDR support) and a BT2020 colorimetry entry (wide gamut support), rather than
+    // assuming any display can do either. Only probes identities it hasn't already checked,
+    // so swapping to a different monitor on the same port triggers a fresh probe instead of
+    // reusing another display's cached result.
+    function checkEdidCapabilities() {
+        if (!root.monitors || root.monitors.length === 0)
+            return;
+        const newMons = root.monitors.filter(m => root.edidCheckedNames.indexOf(root.monitorIdentity(m)) === -1);
+        if (newMons.length === 0)
+            return;
+
+        const nameList = newMons.map(m => `"${m.name.replace(/"/g, "")}"`).join(" ");
+        const script = `
+if ! command -v edid-decode >/dev/null 2>&1; then
+    echo "EDID_DECODE_MISSING"
+    exit 0
+fi
+echo "EDID_DECODE_OK"
+result="{"
+first=1
+for name in ${nameList}; do
+    f=$(ls /sys/class/drm/*-"$name"/edid 2>/dev/null | head -1)
+    hashdr="false"
+    haswide="false"
+    if [ -n "$f" ]; then
+        out=$(edid-decode "$f" 2>/dev/null)
+        echo "$out" | grep -qi "hdr static metadata" && hashdr="true"
+        echo "$out" | grep -qi "bt2020" && haswide="true"
+    fi
+    if [ $first -eq 0 ]; then result="$result,"; fi
+    result="$result\\"$name\\":{\\"hdr\\":$hashdr,\\"wide\\":$haswide}"
+    first=0
+done
+result="$result}"
+echo "$result"
+`;
+        edidCheckProc.command = ["bash", "-c", script];
+        edidCheckProc.running = true;
+        root.edidCheckedNames = root.edidCheckedNames.concat(newMons.map(m => root.monitorIdentity(m)));
+    }
+
+    Process {
+        id: edidCheckProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const lines = text.trim().split("\n");
+                if (lines[0] === "EDID_DECODE_MISSING") {
+                    root.edidDecodeInstalled = false;
+                    return;
+                }
+                root.edidDecodeInstalled = true;
+                try {
+                    const parsed = JSON.parse(lines.slice(1).join("\n") || "{}");
+                    const hdrNames = root.hdrCapableNames.slice();
+                    const wideNames = root.wideGamutCapableNames.slice();
+                    for (const name in parsed) {
+                        // Translate the port-keyed result back to this monitor's identity
+                        // (description-based when available), using its current live state.
+                        const mon = root.monitors.find(m => m.name === name);
+                        const identity = mon ? root.monitorIdentity(mon) : name;
+                        if (parsed[name].hdr && hdrNames.indexOf(identity) === -1)
+                            hdrNames.push(identity);
+                        if (parsed[name].wide && wideNames.indexOf(identity) === -1)
+                            wideNames.push(identity);
+                    }
+                    root.hdrCapableNames = hdrNames;
+                    root.wideGamutCapableNames = wideNames;
+                } catch (e) {
+                    console.log("[MonitorConfigOption] EDID capability parse error:", e);
+                }
+            }
+        }
+    }
+
+    // True if ANY monitor currently has auto-adapt on. Used to lock profile switching,
+    // since applying a profile would otherwise re-pin resolution/refresh on all outputs
+    // (auto-adapt still wins in the end thanks to load order, but locking avoids confusing
+    // flicker/UI state while a profile apply is in flight).
+    property bool anyAutoAdapt: root.monitors && root.monitors.some(m => m.autoAdapt)
+
+    function applyAutoAdaptFlags() {
+        if (!root.monitors || root.monitors.length === 0)
+            return;
+        root.monitors = root.monitors.map(m => Object.assign({}, m, {
+            autoAdapt: root.autoAdaptNames.indexOf(m.name) !== -1
+        }));
+    }
+
+    function setAutoAdapt(index, enabled) {
+        let m = root.monitors.slice();
+        m[index] = Object.assign({}, m[index], {
+            autoAdapt: enabled
+        });
+        root.monitors = m;
+
+        const names = m.filter(mon => mon.autoAdapt).map(mon => mon.name);
+        root.autoAdaptNames = names;
+
+        // Description-based matching (desc:) survives moving a monitor to a different port,
+        // which plain port names (HDMI-A-1, DP-1, ...) don't. Only safe when the description
+        // is non-empty and unique among currently connected monitors — same caveat HyprMon
+        // itself documents, since duplicate/blank descriptions can't be told apart.
+        const descCounts = {};
+        m.forEach(mon => {
+            if (mon.description)
+                descCounts[mon.description] = (descCounts[mon.description] || 0) + 1;
+        });
+
+        const luaLines = m.filter(mon => mon.autoAdapt).map(mon => {
+            const useDesc = mon.description && descCounts[mon.description] === 1;
+            const output = useDesc ? `desc:${mon.description.replace(/\s*\(.*\)\s*$/, "")}` : mon.name;
+            const pos = Math.round(mon.x) + "x" + Math.round(mon.y);
+            const scale = parseFloat(mon.scale || 1.0).toFixed(2);
+            const cm = mon.colorManagementPreset || "srgb";
+            const bitdepth = mon.bitDepth === 10 ? 10 : 8;
+            const sdrBrightness = (mon.sdrBrightness !== undefined ? mon.sdrBrightness : 1.0).toFixed(2);
+            const sdrSaturation = (mon.sdrSaturation !== undefined ? mon.sdrSaturation : 1.0).toFixed(2);
+            const transform = mon.transform || 0;
+
+            let fields = [
+                `output = "${output}"`,
+                `mode = "highrr"`,
+                `position = "${pos}"`,
+                `scale = ${scale}`,
+                `cm = "${cm}"`,
+                `bitdepth = ${bitdepth}`,
+                `sdrbrightness = ${sdrBrightness}`,
+                `sdrsaturation = ${sdrSaturation}`,
+                // Always request VRR when auto-adapting: hyprctl exposes no "is this display
+                // VRR-capable" field to check first, but asking for VRR on a display that
+                // doesn't support it is a harmless no-op, not a black screen risk like a fixed
+                // refresh rate is. Change to 2 instead of 1 if you'd rather it only kick in
+                // for fullscreen apps/games.
+                `vrr = 1`
+            ];
+            if (transform !== 0)
+                fields.push(`transform = ${transform}`);
+            if (mon.mirrorOf && mon.mirrorOf !== "none")
+                fields.push(`mirror = "${mon.mirrorOf}"`);
+
+            return `hl.monitor({ ${fields.join(", ")} })`;
+        });
+
+        const luaContent = "-- Managed by ii Settings > Monitors (StelSync).\n"
+            + "-- Manual changes here are fine, but they will be regenerated whenever\n"
+            + "-- StelSync is toggled from Settings.\n"
+            + (luaLines.length ? luaLines.join("\n") + "\n" : "");
+        const namesJson = JSON.stringify(names);
+
+        autoAdaptSaveProc.command = ["bash", "-c",
+            "mkdir -p ~/.config/hypr && cat << 'EOF' > ~/.config/hypr/autoadapt.lua\n" + luaContent + "EOF\n"
+            + "cat << 'EOF' > ~/.config/hypr/autoadapt_state.json\n" + namesJson + "\nEOF\n"
+            + "hyprctl reload"];
+        autoAdaptSaveProc.running = true;
+    }
+
+    Process {
+        id: autoAdaptSaveProc
+        onRunningChanged: if (!running) {
+            // hyprctl reload needs a moment to actually renegotiate the mode
+            // before hyprctl monitors reflects the new refresh rate
+            autoAdaptFetchDelay.restart();
+        }
+    }
+
+    Timer {
+        id: autoAdaptFetchDelay
+        interval: 600
+        repeat: false
+        onTriggered: {
+            fetchProc.running = true;
+        }
+    }
+
+    Process {
+        id: autoAdaptStateProc
+        command: ["bash", "-c", "cat ~/.config/hypr/autoadapt_state.json 2>/dev/null || echo '[]'"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.autoAdaptNames = JSON.parse(text.trim() || "[]");
+                } catch (e) {
+                    root.autoAdaptNames = [];
+                }
+                root.applyAutoAdaptFlags();
+            }
+        }
     }
 
     function reloadProfiles() {
@@ -146,6 +367,57 @@ NestableObject {
         saveProfileProc.running = true;
     }
 
+    // Instant reaction to monitor connect/disconnect, instead of waiting up to 3s for the
+    // background poll. Hyprland already applies matching monitor rules (including our
+    // autoadapt.lua ones) to a newly connected output on its own — this listener exists
+    // purely so the Settings panel and the OSD notification below aren't stale/late.
+    Connections {
+        target: Hyprland
+        function onRawEvent(event) {
+            switch (event.name) {
+            case "monitoradded":
+            case "monitoraddedv2":
+            case "monitorremoved":
+            case "monitorremovedv2":
+                monitorEventFetchDelay.restart();
+                break;
+            }
+        }
+    }
+
+    Timer {
+        id: monitorEventFetchDelay
+        interval: 400
+        repeat: false
+        onTriggered: {
+            fetchProc.running = true;
+            osdFetchProc.running = true;
+        }
+    }
+
+    // Separate one-shot fetch just for the "which display / what rate" OSD notification,
+    // so it always announces the freshest state right after a monitor change, independent
+    // of whatever the main fetchProc/UI timing is doing.
+    Process {
+        id: osdFetchProc
+        command: ["hyprctl", "monitors", "all", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const mons = JSON.parse(text);
+                    mons.filter(mon => !mon.disabled && root.autoAdaptNames.indexOf(mon.name) !== -1)
+                        .forEach(mon => {
+                            const label = (mon.description || mon.name).replace(/\s*\(.*\)\s*$/, "");
+                            Quickshell.execDetached(["notify-send", "-t", "3000", "StelSync",
+                                `${label}: ${mon.width}x${mon.height} @ ${mon.refreshRate.toFixed(0)}Hz, VRR on`]);
+                        });
+                } catch (e) {
+                    console.log("[MonitorConfigOption] OSD fetch error:", e);
+                }
+            }
+        }
+    }
+
     Process {
         id: fetchProc
         command: ["hyprctl", "monitors", "all", "-j"]
@@ -170,11 +442,30 @@ NestableObject {
                                 colorManagementPreset: m.colorManagementPreset || "srgb",
                                 sdrBrightness: m.sdrBrightness !== undefined ? m.sdrBrightness : 1.0,
                                 sdrSaturation: m.sdrSaturation !== undefined ? m.sdrSaturation : 1.0,
-                                vrr: m.vrr ? 1 : 0
+                                vrr: m.vrr ? 1 : 0,
+                                autoAdapt: root.autoAdaptNames.indexOf(m.name) !== -1
                             }));
+                    root.checkEdidCapabilities();
                 } catch (e) {
                     console.log("[MonitorConfigOption] Error:", e);
                 }
+            }
+        }
+    }
+
+    // Keeps the panel honest: refresh rate / mode can change from outside the UI's own
+    // actions (auto-adapt renegotiating on its own, a monitor reconnecting, etc), so poll
+    // periodically rather than only refetching after actions we triggered ourselves.
+    // Only runs while nothing else is mid-write, so it never fights an in-flight save.
+    Timer {
+        id: livePollTimer
+        interval: 3000
+        running: true
+        repeat: true
+        onTriggered: {
+            if (!fetchProc.running && !saveProc.running && !autoAdaptSaveProc.running
+                && !applyProfileProc.running && !saveToHyprlandProc.running) {
+                fetchProc.running = true;
             }
         }
     }

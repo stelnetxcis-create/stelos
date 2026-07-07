@@ -27,5 +27,12 @@ if status is-interactive
     if test "$TERM" != "linux"
         alias ls 'eza --icons'
     end
-    
+    if test "$TERM" = "xterm-kitty"
+        alias ssh 'kitten ssh'
+    end
 end
+
+fastfetch
+
+# Created by `pipx` on 2026-07-02 00:45:34
+set PATH $PATH /home/xenna/.local/bin

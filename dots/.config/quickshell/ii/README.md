@@ -271,7 +271,7 @@ git clone --recurse-submodules https://github.com/P3DROVFX/ii-vynx.git
 
 2. Run the setup script and follow the instructions:
 ```bash
-./setup-stelos.sh
+./setup-ii-vynx.sh
 ```
 
 ## Documentation

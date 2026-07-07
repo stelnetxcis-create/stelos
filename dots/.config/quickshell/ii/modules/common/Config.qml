@@ -634,6 +634,18 @@ Singleton {
                     property string activeGameId: ""
                     property list<var> customOrder: []
                 }
+                property JsonObject anime: JsonObject {
+                    property bool enable: false
+                    property string aniListUsername: ""
+                    property int refreshIntervalMinutes: 30
+                }
+                property JsonObject news: JsonObject {
+                    property bool enable: false
+                    property string countryCode: "PH"
+                    property string languageCode: "en"
+                    property int refreshIntervalMinutes: 30
+                    property int maxItems: 10
+                }
                 property list<string> screenList: [] // List of names, like "eDP-1", find out with 'hyprctl monitors' command
 
                 property JsonObject timers: JsonObject {
@@ -674,6 +686,15 @@ Singleton {
                     property string city: "" // When 'enableGPS' is false
                     property bool useUSCS: false // Instead of metric (SI) units
                     property int fetchInterval: 10 // minutes
+                    property JsonObject airQuality: JsonObject {
+                        property bool enable: true
+                        property bool showPollen: true
+                    }
+                }
+                property JsonObject digitalWellbeing: JsonObject {
+                    property bool enable: false
+                    property int breakReminderMinutes: 60 // 0 = off
+                    property int dailyLimitMinutes: 0 // 0 = off
                 }
                 property JsonObject indicators: JsonObject {
                     property JsonObject notifications: JsonObject {
@@ -1043,6 +1064,9 @@ Singleton {
                 // New keys (zero-cost on AMD; only NVIDIA/Intel invoke nvidia-smi one-shot)
                 property int diskInterval: 5000
                 property int gpuInterval: 3000
+                // Mountpoints to show in the resources popup's disk section.
+                // Add extra drives here, e.g. ["/", "/mnt/storage"]
+                property list<string> diskMounts: ["/"]
                 // Toggle for Docker section popup. When false, all Docker
                 // polls (docker stats, docker ps) are suppressed and the
                 // events stream is not subscribed.
@@ -1095,6 +1119,8 @@ Singleton {
                 property list<var> aliases: []
                 property string fileSearchDirectory: "/home"
                 property bool blurFileSearchResultPreviews: false
+                property bool appWhitelistEnabled: false
+                property list<string> appWhitelist: []
                 property JsonObject prefix: JsonObject {
                     property bool showDefaultActionsWithoutPrefix: true
                     property string action: "/"

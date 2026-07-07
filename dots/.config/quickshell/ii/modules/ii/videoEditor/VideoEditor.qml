@@ -15,11 +15,27 @@ import Quickshell.Wayland
 
 FloatingWindow {
     id: root
-    visible: GlobalStates.videoEditorOpen
-    
+    title: "illogical-impulse Video Editor"
+
     color: "transparent"
     width: 1200
     height: 800
+
+    // `visible` is intentionally NOT a plain binding to GlobalStates.videoEditorOpen.
+    // This is a real Wayland toplevel: if it's ever closed at the compositor level
+    // (titlebar close button, hyprctl, etc.) instead of through our own
+    // GlobalStates.videoEditorOpen = false calls, Qt sets `visible` imperatively
+    // from C++, which silently breaks a plain QML binding. After that, toggling
+    // GlobalStates.videoEditorOpen back to true would never show the window again
+    // until Quickshell fully reloaded. Instead we sync explicitly both ways.
+    Component.onCompleted: root.visible = GlobalStates.videoEditorOpen
+
+    Connections {
+        target: GlobalStates
+        function onVideoEditorOpenChanged() {
+            root.visible = GlobalStates.videoEditorOpen
+        }
+    }
 
     MediaPlayer {
         id: player
@@ -84,6 +100,12 @@ FloatingWindow {
             sizeProcess.running = true
         } else {
             player.stop()
+            // If the window was closed some other way (titlebar X, compositor,
+            // hyprctl, etc.) rather than through our own Save/Escape handlers,
+            // make sure GlobalStates stays in sync so the popup->editor flow
+            // and IPC launcher work correctly next time.
+            if (GlobalStates.videoEditorOpen)
+                GlobalStates.videoEditorOpen = false
         }
     }
 

@@ -1,7 +1,10 @@
+MenuBar=Disabled
+
 [DetailsMode]
 PreviewSize=32
 
 [General]
+BrowseThroughArchives=true
 GlobalViewProps=false
 ShowFullPath=true
 ShowStatusBar=FullWidth
@@ -14,5 +17,11 @@ Places Icons Static Size=22
 [MainWindow]
 MenuBar=Disabled
 
+[Notification Messages]
+ConfirmRenameFileType=false
+
 [PreviewSettings]
-Plugins=ffmpegthumbnailer,appimagethumbnail,audiothumbnail,avif,blenderthumbnail,comicbookthumbnail,cursorthumbnail,djvuthumbnail,ebookthumbnail,exrthumbnail,directorythumbnail,fontthumbnail,heif,imagethumbnail,jpegthumbnail,jxl,kraorathumbnail,windowsexethumbnail,windowsimagethumbnail,mobithumbnail,opendocumentthumbnail,gsthumbnail,rawthumbnail,librsvg,svgthumbnail,ffmpegthumbs,gdk-pixbuf-thumbnailer,gsf-office
+Plugins=appimagethumbnail,audiothumbnail,comicbookthumbnail,cursorthumbnail,djvuthumbnail,ebookthumbnail,exrthumbnail,directorythumbnail,fontthumbnail,imagethumbnail,jpegthumbnail,kraorathumbnail,windowsexethumbnail,windowsimagethumbnail,opendocumentthumbnail,svgthumbnail
+
+[UiSettings]
+ColorScheme=MaterialYouDark

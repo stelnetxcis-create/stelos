@@ -142,7 +142,7 @@ ContentPage {
         ContentSubsection {
             title: Translation.tr("Color generation mode")
             icon: "settings_brightness"
-            tooltip: Translation.tr("ii-vynx: uses the original switchwall pipeline.\n\nFork: uses the fork's color generation pipeline, use this if vynx doesn't work.")
+            tooltip: Translation.tr("ii-original: uses the original switchwall pipeline.\n\nii-stelnet: uses the stelnet's color generation pipeline, use this if vynx doesn't work.")
             Layout.fillWidth: true
 
             ConfigSelectionArray {
@@ -152,12 +152,12 @@ ContentPage {
                 }
                 options: [
                     {
-                        displayName: Translation.tr("ii-vynx"),
+                        displayName: Translation.tr("ii-original"),
                         value: "vynx",
                         icon: "verified"
                     },
                     {
-                        displayName: Translation.tr("Fork"),
+                        displayName: Translation.tr("ii-stelnet"),
                         value: "fork",
                         icon: "build"
                     }
@@ -382,19 +382,19 @@ ContentPage {
             id: openRgbDeviceProc
             stdout: StdioCollector {
                 onStreamFinished: {
-                    openRgbRefreshing = false;
+                    openRgbSection.openRgbRefreshing = false;
                     if (text.length === 0) {
-                        openRgbError = Translation.tr("OpenRGB did not return any data.");
+                        openRgbSection.openRgbError = Translation.tr("OpenRGB did not return any data.");
                         return;
                     }
                     try {
                         const payload = JSON.parse(text);
                         if (!payload.ok) {
-                            openRgbError = payload.error || Translation.tr("Failed to query OpenRGB devices.");
+                            openRgbSection.openRgbError = payload.error || Translation.tr("Failed to query OpenRGB devices.");
                             return;
                         }
                         const devices = payload.devices || [];
-                        const existing = openRgbDevices || [];
+                        const existing = openRgbSection.openRgbDevices || [];
                         const merged = devices.map(device => {
                             const match = existing.find(prev => prev.id === device.id);
                             return {
@@ -406,16 +406,16 @@ ContentPage {
                         Config.options.appearance.openrgb.devices = merged;
                         openRgbSection.refreshOpenRgbConfig();
                     } catch (e) {
-                        openRgbError = Translation.tr("Failed to parse OpenRGB response.");
+                        openRgbSection.openRgbError = Translation.tr("Failed to parse OpenRGB response.");
                     }
                 }
             }
             stderr: StdioCollector {
                 onStreamFinished: {
-                    openRgbRefreshing = false;
+                    openRgbSection.openRgbRefreshing = false;
                     const trimmed = text.trim();
                     if (trimmed.length > 0) {
-                        openRgbError = trimmed;
+                        openRgbSection.openRgbError = trimmed;
                     }
                 }
             }
@@ -462,6 +462,14 @@ ContentPage {
                     text: modelData.name && modelData.name.length > 0 ? modelData.name : Translation.tr("Device %1").arg(modelData.id)
                     checked: modelData.enabled === true
                     onCheckedChanged: {
+                        // Guard against the binding loop: updateDevice() below replaces
+                        // openRgbSection.openRgbDevices with a new array, which changes
+                        // this Repeater's `model` identity and recreates every delegate.
+                        // Each freshly-created delegate re-evaluates the `checked` binding
+                        // above, which would re-fire this handler and write again forever
+                        // without this check.
+                        if (checked === (modelData.enabled === true))
+                            return;
                         openRgbSection.updateDevice(modelData.id, {
                             enabled: checked,
                             name: modelData.name

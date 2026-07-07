@@ -10,6 +10,7 @@ Rectangle {
     
     property string profileName: ""
     property bool isActive: false
+    property bool locked: false
     
     signal applyClicked()
     signal deleteClicked()
@@ -69,7 +70,8 @@ Rectangle {
             buttonRadius: Appearance.rounding.small
             materialIcon: "done"
             mainText: Translation.tr("Apply")
-            enabled: !isActive
+            enabled: !isActive && !locked
+            opacity: enabled ? 1.0 : 0.5
             onClicked: profileCard.applyClicked()
         }
         

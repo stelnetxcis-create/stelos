@@ -948,4 +948,96 @@ ContentPage {
             }
         }
     }
+
+    ContentSection {
+        icon: "checklist"
+        title: Translation.tr("App Visibility")
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 4
+
+            ConfigSwitch {
+                buttonIcon: "checklist"
+                text: Translation.tr("Only show whitelisted apps")
+                checked: Config.options.search.appWhitelistEnabled
+                onCheckedChanged: {
+                    Config.options.search.appWhitelistEnabled = checked;
+                }
+                StyledToolTip {
+                    text: Translation.tr("When enabled, the launcher, dock, and start menu only show apps you've checked below. Everything else installed on your system (odd .desktop entries from random packages, printer config tools, etc.) stays hidden.")
+                }
+            }
+
+            ConfigTextField {
+                id: appFilterField
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                icon: "search"
+                text: Translation.tr("Filter installed apps")
+                placeholderText: Translation.tr("Type to search...")
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: 4
+                Layout.preferredHeight: 420
+                radius: Appearance.rounding.normal
+                color: Appearance.colors.colLayer1
+
+                StyledListView {
+                    id: appListView
+                    anchors.fill: parent
+                    anchors.margins: 4
+                    clip: true
+                    spacing: 0
+                    animateAppearance: false
+
+                    model: {
+                        const query = appFilterField.inputText.toLowerCase().trim();
+                        if (query.length === 0) return AppSearch.allApps;
+                        return AppSearch.allApps.filter(app => (app.name || "").toLowerCase().includes(query));
+                    }
+
+                    delegate: RowLayout {
+                        required property var modelData
+                        width: appListView.width
+                        height: 44
+                        spacing: 10
+
+                        IconImage {
+                            Layout.leftMargin: 8
+                            Layout.alignment: Qt.AlignVCenter
+                            implicitSize: 22
+                            source: Quickshell.iconPath(AppSearch.guessIcon(modelData.id), "image-missing")
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
+                            text: modelData.name
+                            elide: Text.ElideRight
+                            color: Appearance.colors.colOnLayer1
+                        }
+
+                        StyledSwitch {
+                            Layout.rightMargin: 8
+                            Layout.fillWidth: false
+                            Layout.alignment: Qt.AlignVCenter
+                            checked: Config.options.search.appWhitelist.includes(modelData.id)
+                            onClicked: AppSearch.toggleWhitelisted(modelData.id)
+                        }
+                    }
+                }
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                Layout.topMargin: 4
+                text: Translation.tr("%1 apps whitelisted").arg(Config.options.search.appWhitelist.length)
+                color: Appearance.colors.colSubtext
+                font.pixelSize: Appearance.font.pixelSize.small
+            }
+        }
+    }
 }

@@ -17,10 +17,11 @@ ContentPage {
     property int forkUpdates: 0
     property int upstreamUpdates: 0
     property bool checkingUpdates: false
+    readonly property bool isStelosOwner: StelosAccessService.isOwner
 
     Process {
         id: checkRemoteProc
-        command: ["bash", "-c", "if [ -f \"$HOME/.config/quickshell/ii/.active-remote\" ]; then cat \"$HOME/.config/quickshell/ii/.active-remote\"; else for dir in \"$HOME/Downloads/ii-vynx\" \"$HOME/.local/share/ii-vynx-fork\" \"$HOME/.local/share/ii-vynx-upstream\" \"$HOME/.local/share/ii-vynx\" \"$HOME/dotfiles\"; do if git -C \"$dir\" rev-parse --is-inside-work-tree >/dev/null 2>&1; then git -C \"$dir\" remote get-url origin; break; fi; done; fi"]
+        command: ["bash", FileUtils.trimFileProtocol(`${Directories.home}/.local/share/ii-stelos/get-active-remote.sh`)]
         stdout: StdioCollector {
             onStreamFinished: {
                 page.activeRemote = text.trim();
@@ -57,10 +58,22 @@ ContentPage {
         if (visible) {
             checkRemoteProc.running = true;
             checkUpdatesProc.running = true;
+            // Owner status is cached to disk and only re-checked at startup
+            // or via the manual refresh button, to avoid re-flashing the
+            // User view every time this panel is opened.
         }
     }
 
     readonly property string setupScript: FileUtils.trimFileProtocol(`${Directories.home}/.local/share/ii-vynx/setup-stelos.sh`)
+    readonly property string stelosDir: FileUtils.trimFileProtocol(`${Directories.home}/.local/share/ii-stelos`)
+    readonly property string stelosRepoOwner: "stelnetxcis-create"
+    readonly property string stelosRepoName: "stelos"
+    readonly property string stelosRepoUrl: `https://github.com/${stelosRepoOwner}/${stelosRepoName}`
+    readonly property string stelosRepoDisplay: `github.com/${stelosRepoOwner}/${stelosRepoName}`
+    readonly property string stelosSetupScript: FileUtils.trimFileProtocol(`${Directories.home}/.local/share/ii-stelos/setup-stelos-repo.sh`)
+    readonly property string stelosPushScript: FileUtils.trimFileProtocol(`${Directories.home}/.local/share/ii-stelos/push-stelos.sh`)
+    readonly property string stelosSyncScript: FileUtils.trimFileProtocol(`${Directories.home}/.local/share/ii-stelos/sync-live-config.sh`)
+    readonly property string stelosPullApplyScript: FileUtils.trimFileProtocol(`${Directories.home}/.local/share/ii-stelos/pull-and-apply.sh`)
 
     Process {
         id: actionProc
@@ -83,15 +96,39 @@ ContentPage {
             actionProc.finished = true;
             if (code === 0) {
                 actionProc.logOutput += "✓ Done\n";
-                if (actionProc.mode === "update-fork") {
-                    Quickshell.execDetached(["bash", page.setupScript, "--force-install", "--no-pull", "--no-confirm", "--preserve-config"]);
-                } else if (actionProc.mode === "update-upstream") {
-                    Quickshell.execDetached(["bash", page.setupScript, "--force-install", "--no-pull", "--no-confirm", "--ii-vynx", "--preserve-config"]);
-                }
             } else {
                 actionProc.logOutput += "✗ Exited with code " + code + "\n";
             }
         }
+    }
+
+    // ── StelOS Pull / Push / Construct ──────────────────────────────────────
+    Process {
+        id: stelosProc
+        property string mode: ""
+        property string logOutput: ""
+        property int exitCode: -1
+        property bool finished: false
+        stdout: SplitParser {
+            onRead: data => { stelosProc.logOutput += data + "\n"; }
+        }
+        stderr: SplitParser {
+            onRead: data => { stelosProc.logOutput += data + "\n"; }
+        }
+        onExited: code => {
+            stelosProc.exitCode = code;
+            stelosProc.finished = true;
+            stelosProc.logOutput += code === 0 ? "✓ Done\n" : ("✗ Exited with code " + code + "\n");
+        }
+    }
+
+    function runStelosAction(mode, command) {
+        stelosProc.logOutput = "";
+        stelosProc.finished = false;
+        stelosProc.exitCode = -1;
+        stelosProc.mode = mode;
+        stelosProc.command = command;
+        stelosProc.running = true;
     }
 
     ContentSection {
@@ -193,11 +230,10 @@ ContentPage {
             ContentSubsection {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.columnSpan: 2
                 topLeftRadius: Appearance.rounding.verysmall
                 topRightRadius: Appearance.rounding.verysmall
                 bottomLeftRadius: Appearance.rounding.large
-                bottomRightRadius: Appearance.rounding.large
+                bottomRightRadius: Appearance.rounding.verysmall
                 title: Translation.tr("StelOS")
                 icon: "call_split"
 
@@ -221,7 +257,7 @@ ContentPage {
                             font.weight: Font.Bold
                         }
                         StyledText {
-                            text: "<a href='https://github.com/stelnetxcis-create/stelos'>github.com/stelnetxcis-create/stelos</a>"
+                            text: `<a href='${page.stelosRepoUrl}'>${page.stelosRepoDisplay}</a>`
                             font.pixelSize: Appearance.font.pixelSize.small
                             textFormat: Text.RichText
                             onLinkActivated: link => Qt.openUrlExternally(link)
@@ -232,8 +268,74 @@ ContentPage {
                 Flow {
                     Layout.fillWidth: true
                     spacing: 5
-                    RippleButtonWithIcon { materialIcon: "code"; mainText: Translation.tr("GitHub"); onClicked: Qt.openUrlExternally("https://github.com/stelnetxcis-create/stelos") }
-                    RippleButtonWithIcon { materialIcon: "adjust"; materialIconFill: false; mainText: Translation.tr("Issues"); onClicked: Qt.openUrlExternally("https://github.com/stelnetxcis-create/stelos/issues") }
+                    RippleButtonWithIcon { materialIcon: "code"; mainText: Translation.tr("Repository"); onClicked: Qt.openUrlExternally(page.stelosRepoUrl) }
+                    RippleButtonWithIcon { materialIcon: "adjust"; materialIconFill: false; mainText: Translation.tr("Issues"); onClicked: Qt.openUrlExternally(`${page.stelosRepoUrl}/issues`) }
+                }
+            }
+
+            ContentSubsection {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                topLeftRadius: Appearance.rounding.verysmall
+                topRightRadius: Appearance.rounding.verysmall
+                bottomLeftRadius: Appearance.rounding.verysmall
+                bottomRightRadius: Appearance.rounding.large
+                title: Translation.tr("Access Level")
+                icon: page.isStelosOwner ? "verified_user" : "person"
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+                    Layout.topMargin: 10
+                    Layout.bottomMargin: 10
+                    Rectangle {
+                        implicitWidth: 50
+                        implicitHeight: 50
+                        radius: Appearance.rounding.large
+                        gradient: Gradient {
+                            orientation: Gradient.Vertical
+                            GradientStop { position: 0.0; color: page.isStelosOwner ? Appearance.colors.colPrimary : Appearance.colors.colSecondaryContainer }
+                            GradientStop { position: 1.0; color: page.isStelosOwner ? Appearance.colors.colPrimaryContainer : Appearance.colors.colSurfaceContainerHigh }
+                        }
+                        border.width: page.isStelosOwner ? 2 : 0
+                        border.color: Appearance.colors.colPrimary
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: page.isStelosOwner ? "verified_user" : "person"
+                            iconSize: 28
+                            color: page.isStelosOwner ? Appearance.colors.colOnPrimary : Appearance.colors.colOnSecondaryContainer
+                        }
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+                        StyledText {
+                            text: page.isStelosOwner ? Translation.tr("Owner") : Translation.tr("User")
+                            font.pixelSize: Appearance.font.pixelSize.normal
+                            font.weight: Font.Bold
+                        }
+                        StyledText {
+                            text: page.isStelosOwner
+                                ? Translation.tr("Push access detected — full repo controls unlocked")
+                                : Translation.tr("Read-only — pull updates only")
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: Appearance.colors.colSubtext
+                            wrapMode: Text.Wrap
+                            Layout.fillWidth: true
+                        }
+                    }
+                    RippleButton {
+                        implicitWidth: 32
+                        implicitHeight: 32
+                        buttonRadius: Appearance.rounding.full
+                        toggled: StelosAccessService.checking
+                        onClicked: StelosAccessService.recheck()
+                        contentItem: MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: "refresh"
+                            iconSize: 18
+                        }
+                    }
                 }
             }
         }
@@ -244,6 +346,7 @@ ContentPage {
         title: Translation.tr("Git Source & Update Controls")
 
         ContentSubsection {
+            visible: !page.isStelosOwner
             title: Translation.tr("Source updater")
             icon: "update"
             tooltip: Translation.tr("Pull latest changes from GitHub for each source independently")
@@ -289,7 +392,9 @@ ContentPage {
                         actionProc.finished = false;
                         actionProc.exitCode = -1;
                         actionProc.mode = "update-fork";
-                        actionProc.command = ["bash", page.setupScript, "--update-only", "--no-confirm"];
+                        actionProc.command = ["bash", "-c",
+                            `if [ ! -d "${page.stelosDir}/.git" ]; then bash "${page.stelosSetupScript}" "${page.stelosDir}"; fi; bash "${page.stelosPullApplyScript}" "${page.stelosDir}"`
+                        ];
                         actionProc.running = true;
                     }
                 }
@@ -330,13 +435,14 @@ ContentPage {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.topMargin: 6
-                height: Math.min(250, logText.implicitHeight + 16)
+                height: 250
                 visible: actionProc.logOutput !== ""
                 radius: Appearance.rounding.small
                 color: Appearance.colors.colLayer0
                 border.color: !actionProc.finished ? Appearance.colors.colOutline :
                               (actionProc.exitCode === 0 ? Appearance.colors.colPrimary : Appearance.colors.colError)
                 border.width: 1
+                clip: true
 
                 StyledFlickable {
                     anchors.fill: parent
@@ -345,6 +451,11 @@ ContentPage {
                     contentHeight: logText.implicitHeight
                     contentWidth: width
                     flickableDirection: Flickable.VerticalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+
+                    ScrollBar.vertical: ScrollBar {
+                        policy: ScrollBar.AsNeeded
+                    }
 
                     Text {
                         id: logText
@@ -354,6 +465,154 @@ ContentPage {
                         font.pixelSize: Appearance.font.pixelSize.small
                         color: Appearance.colors.colOnLayer1
                         wrapMode: Text.WrapAnywhere
+                        textFormat: Text.PlainText
+                    }
+                }
+            }
+        }
+
+        ContentSubsection {
+            visible: page.isStelosOwner
+            title: Translation.tr("StelOS Repo")
+            icon: "call_split"
+            tooltip: Translation.tr("Pull, push, or construct your StelOS fork from your live config")
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                RippleButtonWithIcon {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 45
+                    buttonRadius: Appearance.rounding.large
+                    materialIcon: stelosProc.running && stelosProc.mode === "pull" ? "sync" : "download"
+                    mainContentComponent: StyledText {
+                        text: stelosProc.running && stelosProc.mode === "pull" ? Translation.tr("Pulling...") : Translation.tr("Pull")
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colOnSecondaryContainer
+                    }
+                    enabled: !stelosProc.running
+                    onClicked: {
+                        page.runStelosAction("pull", ["bash", "-c",
+                            `if [ ! -d "${page.stelosDir}/.git" ]; then bash "${page.stelosSetupScript}" "${page.stelosDir}"; else cd "${page.stelosDir}" && git pull --ff-only; fi`
+                        ]);
+                    }
+                }
+
+                RippleButtonWithIcon {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 45
+                    buttonRadius: Appearance.rounding.large
+                    materialIcon: stelosProc.running && stelosProc.mode === "push" ? "sync" : "upload"
+                    mainContentComponent: StyledText {
+                        text: stelosProc.running && stelosProc.mode === "push" ? Translation.tr("Pushing...") : Translation.tr("Push")
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colOnSecondaryContainer
+                    }
+                    enabled: !stelosProc.running
+                    onClicked: {
+                        page.runStelosAction("push", ["bash", page.stelosPushScript, page.stelosDir, "Update StelOS config"]);
+                    }
+                }
+
+                RippleButtonWithIcon {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 45
+                    buttonRadius: Appearance.rounding.large
+                    materialIcon: stelosProc.running && stelosProc.mode === "construct" ? "sync" : "construction"
+                    mainContentComponent: StyledText {
+                        text: stelosProc.running && stelosProc.mode === "construct" ? Translation.tr("Constructing...") : Translation.tr("Construct")
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colOnSecondaryContainer
+                    }
+                    enabled: !stelosProc.running
+                    onClicked: {
+                        page.runStelosAction("construct", ["bash", page.stelosSyncScript, page.stelosDir, "--yes"]);
+                    }
+                }
+
+                RippleButtonWithIcon {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 45
+                    buttonRadius: Appearance.rounding.large
+                    materialIcon: stelosProc.running && stelosProc.mode === "update" ? "sync" : "system_update_alt"
+                    mainContentComponent: StyledText {
+                        text: stelosProc.running && stelosProc.mode === "update" ? Translation.tr("Updating...") : Translation.tr("Update")
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colOnSecondaryContainer
+                    }
+                    enabled: !stelosProc.running
+                    onClicked: {
+                        page.runStelosAction("update", ["bash", page.stelosPullApplyScript, page.stelosDir]);
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                height: 40
+                visible: stelosProc.finished
+                radius: Appearance.rounding.small
+                color: ColorUtils.transparentize(stelosProc.exitCode === 0 ? Appearance.colors.colPrimary : Appearance.colors.colError, 0.85)
+                border.color: stelosProc.exitCode === 0 ? Appearance.colors.colPrimary : Appearance.colors.colError
+                border.width: 1
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 8
+
+                    MaterialSymbol {
+                        text: stelosProc.exitCode === 0 ? "check_circle" : "error"
+                        iconSize: 20
+                        color: stelosProc.exitCode === 0 ? Appearance.colors.colPrimary : Appearance.colors.colError
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: stelosProc.exitCode === 0 ? Translation.tr("Done!") : Translation.tr("Failed — check log below.")
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colOnLayer0
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: 6
+                height: 250
+                visible: stelosProc.logOutput !== ""
+                radius: Appearance.rounding.small
+                color: Appearance.colors.colLayer0
+                border.color: !stelosProc.finished ? Appearance.colors.colOutline :
+                              (stelosProc.exitCode === 0 ? Appearance.colors.colPrimary : Appearance.colors.colError)
+                border.width: 1
+                clip: true
+
+                StyledFlickable {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    clip: true
+                    contentHeight: stelosLogText.implicitHeight
+                    contentWidth: width
+                    flickableDirection: Flickable.VerticalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+
+                    ScrollBar.vertical: ScrollBar {
+                        policy: ScrollBar.AsNeeded
+                    }
+
+                    Text {
+                        id: stelosLogText
+                        width: parent.width
+                        text: stelosProc.logOutput
+                        font.family: "monospace"
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colOnLayer1
+                        wrapMode: Text.WrapAnywhere
+                        textFormat: Text.PlainText
                     }
                 }
             }

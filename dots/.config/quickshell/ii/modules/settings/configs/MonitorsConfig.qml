@@ -489,6 +489,7 @@ ContentPage {
 
     NoticeBox {
         Layout.fillWidth: true
+        visible: !monitorConfig.hyprmonInstalled
         text: Translation.tr("Monitor Settings uses hyprmon to configure your monitors. It is required to have hyprmon installed for this page to work properly.")
 
         RippleButtonWithIcon {
@@ -762,11 +763,81 @@ ContentPage {
         visible: monitorConfig.monitors && monitorConfig.monitors.length > 0 && monitorCanvas.selectedIndex >= 0 && monitorCanvas.selectedIndex < monitorConfig.monitors.length
 
         ContentSubsection {
+            title: Translation.tr("StelSync")
+            icon: "auto_awesome"
+
+            ConfigSwitch {
+                Layout.fillWidth: true
+                buttonIcon: "auto_awesome"
+                text: Translation.tr("StelSync")
+                checked: !!(monitorConfig.monitors && monitorConfig.monitors[monitorCanvas.selectedIndex] && monitorConfig.monitors[monitorCanvas.selectedIndex].autoAdapt)
+                onCheckedChanged: {
+                    if (monitorConfig.monitors && monitorConfig.monitors[monitorCanvas.selectedIndex]) {
+                        const currentVal = !!monitorConfig.monitors[monitorCanvas.selectedIndex].autoAdapt;
+                        if (checked !== currentVal) {
+                            monitorConfig.setAutoAdapt(monitorCanvas.selectedIndex, checked);
+                            Quickshell.execDetached(["notify-send", "Monitors", checked ? Translation.tr("StelSync enabled: refresh rate and VRR will always match this display's best supported settings.") : Translation.tr("StelSync disabled.")]);
+                        }
+                    }
+                }
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                font.pixelSize: 12
+                color: Appearance.colors.colSubtext
+                text: Translation.tr("Automatically sets this display's refresh rate and VRR to the best it supports, instead of fixed values — fixes black screens when moving between displays/docks with different capabilities. While on, it locks the manual controls it governs below (VRR, resolution/refresh, and profile switching), since it always overrides them anyway.")
+            }
+        }
+
+        ContentSubsection {
+            title: Translation.tr("Variable Refresh Rate")
+            icon: "sync"
+
+            ConfigSwitch {
+                Layout.fillWidth: true
+                buttonIcon: "sync"
+                text: Translation.tr("VRR (Adaptive Sync)")
+                enabled: !(monitorConfig.monitors && monitorConfig.monitors[monitorCanvas.selectedIndex] && monitorConfig.monitors[monitorCanvas.selectedIndex].autoAdapt)
+                opacity: enabled ? 1.0 : 0.6
+                // While StelSync governs this monitor it always requests VRR on, so show that
+                // truthfully even though the control itself is locked (disabled above).
+                checked: !!(monitorConfig.monitors && monitorConfig.monitors[monitorCanvas.selectedIndex] && (monitorConfig.monitors[monitorCanvas.selectedIndex].autoAdapt || monitorConfig.monitors[monitorCanvas.selectedIndex].vrr))
+                onCheckedChanged: {
+                    if (!enabled)
+                        return; // locked by StelSync; this change came from the binding above, not a click
+                    if (monitorConfig.monitors && monitorConfig.monitors[monitorCanvas.selectedIndex]) {
+                        const currentVal = !!monitorConfig.monitors[monitorCanvas.selectedIndex].vrr;
+                        if (checked !== currentVal) {
+                            monitorConfig.updateMonitor(monitorCanvas.selectedIndex, {
+                                vrr: checked ? 1 : 0
+                            });
+                            monitorConfig.applyAndSave(monitorCanvas.selectedIndex);
+                        }
+                    }
+                }
+            }
+
+            StyledText {
+                visible: !!(monitorConfig.monitors && monitorConfig.monitors[monitorCanvas.selectedIndex] && monitorConfig.monitors[monitorCanvas.selectedIndex].autoAdapt)
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                font.pixelSize: 12
+                color: Appearance.colors.colSubtext
+                text: Translation.tr("Locked on by StelSync above. There's no way to check in advance whether this display actually supports VRR — requesting it on one that doesn't is harmless, so StelSync always asks for it.")
+            }
+        }
+
+        ContentSubsection {
             title: Translation.tr("Resolution & Refresh Rate")
             icon: "aspect_ratio"
+
             StyledComboBox {
                 buttonIcon: "aspect_ratio"
                 Layout.fillWidth: true
+                enabled: !(monitorConfig.monitors && monitorConfig.monitors[monitorCanvas.selectedIndex] && monitorConfig.monitors[monitorCanvas.selectedIndex].autoAdapt)
+                opacity: enabled ? 1.0 : 0.5
                 model: (monitorConfig.monitors && monitorConfig.monitors[monitorCanvas.selectedIndex] ? (monitorConfig.monitors[monitorCanvas.selectedIndex].availableModes || []) : []).map(mode => ({
                             display: mode,
                             value: mode
@@ -990,57 +1061,81 @@ ContentPage {
         ContentSubsection {
             title: Translation.tr("Color Management")
             icon: "palette"
+
+            StyledText {
+                visible: !monitorConfig.edidDecodeInstalled
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                font.pixelSize: 12
+                color: Appearance.colors.colSubtext
+                text: Translation.tr("edid-decode isn't installed, so HDR and Wide Color Gamut can't be verified as supported for this display — they're hidden until it's available, since requesting a mode a monitor can't actually decode can black-screen it. Install edid-decode to unlock them once verified.")
+            }
+
             StyledComboBox {
                 buttonIcon: "palette"
                 Layout.fillWidth: true
-                model: [
-                    {
-                        display: Translation.tr("sRGB (Standard)"),
-                        value: "srgb"
-                    },
-                    {
-                        display: Translation.tr("HDR"),
-                        value: "hdr"
-                    },
-                    {
-                        display: Translation.tr("HDR (EDID)"),
-                        value: "hdr-edid"
-                    },
-                    {
-                        display: Translation.tr("Wide Color Gamut"),
-                        value: "wide"
-                    },
-                    {
+                model: {
+                    const mon = monitorConfig.monitors[monitorCanvas.selectedIndex];
+                    const identity = mon ? monitorConfig.monitorIdentity(mon) : null;
+                    const hdrOk = identity && monitorConfig.edidDecodeInstalled && monitorConfig.hdrCapableNames.indexOf(identity) !== -1;
+                    const wideOk = identity && monitorConfig.edidDecodeInstalled && monitorConfig.wideGamutCapableNames.indexOf(identity) !== -1;
+
+                    let opts = [{
+                            display: Translation.tr("sRGB (Standard)"),
+                            value: "srgb"
+                        }];
+                    if (hdrOk) {
+                        opts.push({
+                            display: Translation.tr("HDR"),
+                            value: "hdr"
+                        });
+                        opts.push({
+                            display: Translation.tr("HDR (EDID)"),
+                            value: "hdr-edid"
+                        });
+                    }
+                    if (wideOk) {
+                        opts.push({
+                            display: Translation.tr("Wide Color Gamut"),
+                            value: "wide"
+                        });
+                    }
+                    opts.push({
                         display: Translation.tr("Auto"),
                         value: "auto"
-                    }
-                ]
+                    });
+                    return opts;
+                }
                 textRole: "display"
                 currentIndex: {
                     const mon = monitorConfig.monitors[monitorCanvas.selectedIndex];
                     if (!mon || !mon.colorManagementPreset)
                         return 0;
-                    const val = mon.colorManagementPreset;
-                    if (val === "srgb")
-                        return 0;
-                    if (val === "hdr")
-                        return 1;
-                    if (val === "hdr-edid")
-                        return 2;
-                    if (val === "wide")
-                        return 3;
-                    if (val === "auto")
-                        return 4;
-                    return 0;
+                    for (let i = 0; i < model.length; i++) {
+                        if (model[i].value === mon.colorManagementPreset)
+                            return i;
+                    }
+                    return 0; // preset isn't in the currently-safe list (e.g. was set before verification existed) — falls back to sRGB in the UI; doesn't silently rewrite the config
                 }
                 onActivated: index => {
-                    const vals = ["srgb", "hdr", "hdr-edid", "wide", "auto"];
-                    const cmValue = vals[index];
+                    const cmValue = model[index].value;
                     monitorConfig.updateMonitor(monitorCanvas.selectedIndex, {
                         colorManagementPreset: cmValue
                     });
                     monitorConfig.applyAndSave(monitorCanvas.selectedIndex);
                 }
+            }
+
+            StyledText {
+                visible: {
+                    const mon = monitorConfig.monitors[monitorCanvas.selectedIndex];
+                    return !!(mon && mon.colorManagementPreset && (mon.colorManagementPreset === "hdr" || mon.colorManagementPreset === "hdr-edid" || mon.colorManagementPreset === "wide") && monitorConfig.edidDecodeInstalled && !monitorConfig[mon.colorManagementPreset === "wide" ? "wideGamutCapableNames" : "hdrCapableNames"].includes(monitorConfig.monitorIdentity(mon)));
+                }
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                font.pixelSize: 12
+                color: Appearance.colors.colError
+                text: Translation.tr("This monitor's current setting isn't verified as supported by its EDID. It's shown as sRGB above and won't be reapplied automatically — pick a verified option to clear this.")
             }
         }
 
@@ -1098,6 +1193,15 @@ ContentPage {
         icon: "display_settings"
         title: Translation.tr("Profiles")
 
+        StyledText {
+            visible: monitorConfig.anyAutoAdapt
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            font.pixelSize: 12
+            color: Appearance.colors.colSubtext
+            text: Translation.tr("Locked while StelSync is on for a monitor — profiles can't override what it controls anyway, so switching is disabled to avoid confusion. Turn off StelSync above to manage profiles again.")
+        }
+
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 12
@@ -1107,6 +1211,7 @@ ContentPage {
                 delegate: MonitorProfileCard {
                     profileName: modelData.name
                     isActive: modelData.isActive
+                    locked: monitorConfig.anyAutoAdapt
                     onApplyClicked: {
                         monitorConfig.applyProfile(modelData.name);
                         Quickshell.execDetached(["notify-send", "Monitors", Translation.tr(`Profile '${modelData.name}' applied!`)]);
@@ -1122,6 +1227,8 @@ ContentPage {
                 buttonRadius: Appearance.rounding.small
                 materialIcon: "add"
                 mainText: Translation.tr("New Profile")
+                enabled: !monitorConfig.anyAutoAdapt
+                opacity: enabled ? 1.0 : 0.5
                 onClicked: {
                     createProfileDialog.show = true;
                 }

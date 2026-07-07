@@ -1,7 +1,9 @@
-#!/usr/bin/env python3
-import obsws_python as obs
+#!/usr/bin/env python3.14
 import os
 import sys
+
+import obsws_python as obs
+
 
 def main():
     host = os.environ.get("OBS_API_HOST", "localhost")
@@ -18,6 +20,7 @@ def main():
     except Exception as e:
         print(f"Error connecting to OBS or toggling pause: {e}", file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

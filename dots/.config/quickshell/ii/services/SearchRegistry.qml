@@ -30,7 +30,8 @@ Item {
             "CoreAlertsConfig.qml", "CoreMediaConfig.qml", "CorePoliciesConfig.qml",
             "CoreNetworkConfig.qml", "CoreFilesConfig.qml", "CoreWeatherConfig.qml",
             "CoreTerminalConfig.qml", "CoreWaffleConfig.qml", "GameOverlayConfig.qml",
-            "BTDeviceImagesConfig.qml", "DashboardButtonConfig.qml", "MediaDownloaderConfig.qml"
+            "BTDeviceImagesConfig.qml", "DashboardButtonConfig.qml", "MediaDownloaderConfig.qml",
+            "DigitalWellbeingConfig.qml", "EntertainmentTrackersConfig.qml", "AnimeConfig.qml", "NewsConfig.qml"
         ];
         
         

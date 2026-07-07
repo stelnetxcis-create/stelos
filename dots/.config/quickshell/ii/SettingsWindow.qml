@@ -130,6 +130,11 @@ FloatingWindow {
             component: "modules/settings/configs/LockScreenConfig.qml"
         },
         {
+            name: Translation.tr("Stella"),
+            icon: "shield",
+            component: "modules/settings/configs/StellaConfig.qml"
+        },
+        {
             name: Translation.tr("About & Updates"),
             icon: "info",
             component: "modules/settings/configs/AboutConfig.qml"
@@ -143,6 +148,17 @@ FloatingWindow {
             name: Translation.tr("Search Results"),
             icon: "search",
             component: "modules/settings/configs/SearchPage.qml"
+        },
+        // Group 5 – Experimental Features (indices 21..22)
+        {
+            name: Translation.tr("Digital Wellbeing"),
+            icon: "hourglass_top",
+            component: "modules/settings/configs/widgets/DigitalWellbeingConfig.qml"
+        },
+        {
+            name: Translation.tr("Entertainment Trackers"),
+            icon: "stadia_controller",
+            component: "modules/settings/configs/EntertainmentTrackersConfig.qml"
         }
     ]
 
@@ -173,8 +189,16 @@ FloatingWindow {
                     }))
         },
         {
+            name: Translation.tr("Experimental Features"),
+            pages: [22, 23].map(i => ({
+                        name: pages[i].name,
+                        icon: pages[i].icon,
+                        pageIndex: i
+                    }))
+        },
+        {
             name: Translation.tr("System & Services"),
-            pages: [15, 16, 17, 18].map(i => ({
+            pages: [15, 16, 17, 18, 19].map(i => ({
                         name: pages[i].name,
                         icon: pages[i].icon,
                         pageIndex: i
@@ -271,8 +295,8 @@ FloatingWindow {
                 id: userHeader
                 Layout.preferredWidth: 230
                 Layout.fillHeight: true
-                isActive: root.currentPage === 19
-                onClicked: root.currentPage = 19
+                isActive: root.currentPage === 20
+                onClicked: root.currentPage = 20
             }
 
             SearchBar {
@@ -285,7 +309,7 @@ FloatingWindow {
 
                 onTextChanged: text => {
                     if (text === "") {
-                        if (root.currentPage === 20) {
+                        if (root.currentPage === 21) {
                             root.currentPage = root.previousPage;
                         }
                         root.activeSearchQuery = "";
@@ -302,7 +326,7 @@ FloatingWindow {
                         root.activeSearchQuery = "";
                         root.resultsCount = 0;
                         root.lastSearchIndex = -1;
-                        if (root.currentPage === 20) {
+                        if (root.currentPage === 21) {
                             root.currentPage = root.previousPage;
                         }
                         return;
@@ -319,12 +343,12 @@ FloatingWindow {
                     root.resultsCount = totalWidgets;
                     root.lastSearchIndex = 0;
 
-                    if (root.currentPage !== 20) {
+                    if (root.currentPage !== 21) {
                         root.previousPage = root.currentPage;
                     }
                     root.activeSearchQuery = text;
                     SearchRegistry.currentSearch = text;
-                    root.currentPage = 20;
+                    root.currentPage = 21;
                 }
 
                 onCloseRequested: GlobalStates.settingsOpen = false

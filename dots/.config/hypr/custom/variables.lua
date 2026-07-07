@@ -1,1 +1,2 @@
--- Put custom variables here
+
+workspaceGroupSize = 10

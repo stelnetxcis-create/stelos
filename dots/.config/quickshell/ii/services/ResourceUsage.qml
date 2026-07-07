@@ -27,6 +27,11 @@ Singleton {
     property real diskFree: 0
     property real diskUsed: 0
     property real diskUsedPercentage: diskTotal > 0 ? (diskUsed / diskTotal) : 0
+    // Multi-mount disk list, driven by Config.options.resources.diskMounts.
+    // Each entry: { mountpoint, total, used, free, usedPercentage }
+    // diskTotal/diskUsed/diskFree/diskUsedPercentage above always mirror
+    // the first configured mount (root by default) for backwards compat.
+    property list<var> diskList: []
     property real swapTotal: 1
 	property real swapFree: 0
 	property real swapUsed: swapTotal - swapFree
@@ -80,10 +85,14 @@ Singleton {
     }
 
 	property bool gpuMonitoringEnabled: false
+	property var gpuUsageSamples: []
 	onGpuMonitoringEnabledChanged: {
+		// Don't zero gpuUsage/gpuTemp here - keep showing the last known
+		// reading while unmonitored, same as CPU always shows its last poll.
+		// Only clear the rolling sample window so a fresh burst average
+		// starts once monitoring resumes instead of mixing in stale samples.
 		if (!gpuMonitoringEnabled) {
-			gpuUsage = 0
-			gpuTemp = 0
+			gpuUsageSamples = []
 		}
 	}
 
@@ -101,6 +110,28 @@ Singleton {
 
     FileView { id: amdUsageFileView }
     FileView { id: amdTempFileView }
+
+    // gpu_busy_percent is an instantaneous point sample: the iGPU idles
+    // between frames and only spikes for a few ms during compositing/render
+    // work, so a single read every 3s almost always lands on an idle gap.
+    // We still sample it rapidly internally (zero-cost FileView.reload(),
+    // no fork) to catch those spikes, but only push the peak into the
+    // UI-bound gpuUsage property on the same slow cadence as CPU/RAM below -
+    // no point re-rendering the popup 5x/sec over a number that's mostly
+    // just noise at that resolution.
+    Timer {
+        id: amdGpuUsageBurstTimer
+        interval: 200
+        repeat: true
+        running: root.gpuMonitoringEnabled && root.gpuVendor === "amd" && root.amdUsagePath !== ""
+        onTriggered: {
+            amdUsageFileView.reload()
+            const usage = Number(amdUsageFileView.text().trim() || 0)
+            let samples = [...root.gpuUsageSamples, usage]
+            if (samples.length > 10) samples.shift() // ~2s window at 200ms
+            root.gpuUsageSamples = samples
+        }
+    }
 
     FileView { id: cpuTempFileView }
 	property string cpuTempPath: ""
@@ -161,17 +192,20 @@ Singleton {
 				previousCpuStats = { total, idle }
 			}
 
-			// AMD GPU stats via sysfs (zero-cost, no fork)
+			// AMD GPU temp + usage via sysfs (zero-cost, no fork). Usage is
+			// rapidly sampled in the background by amdGpuUsageBurstTimer
+			// (since gpu_busy_percent is an instantaneous value that spikes
+			// briefly and would be missed at this slower cadence), but we
+			// only push the resulting peak into the UI-bound property here,
+			// at the same refresh rate as CPU, instead of every 200ms.
 			if (root.gpuVendor === "amd" && root.gpuMonitoringEnabled) {
-				if (root.amdUsagePath) {
-					amdUsageFileView.reload()
-					const usage = Number(amdUsageFileView.text().trim() || 0)
-					root.gpuUsage = usage / 100
-				}
 				if (root.amdTempPath) {
 					amdTempFileView.reload()
 					const rawTemp = Number(amdTempFileView.text().trim() || 0)
 					root.gpuTemp = rawTemp > 1000 ? rawTemp / 1000 : rawTemp
+				}
+				if (root.gpuUsageSamples.length > 0) {
+					root.gpuUsage = Math.max(...root.gpuUsageSamples) / 100
 				}
 			}
 
@@ -220,7 +254,9 @@ Singleton {
             "elif [ -d /sys/class/drm ] && ls /sys/class/drm/card*/device/gpu_busy_percent >/dev/null 2>&1; then " +
             "  for card in /sys/class/drm/card*/device; do " +
             "    if [ -f \"$card/gpu_busy_percent\" ]; then " +
-            "      model=$(cat \"$card/device\" 2>/dev/null || basename $(dirname \"$card\")); " +
+            "      pcislot=$(basename $(readlink -f \"$card\")); " +
+            "      model=$(lspci -s \"$pcislot\" 2>/dev/null | sed 's/.*: //'); " +
+            "      [ -z \"$model\" ] && model=$(basename $(dirname \"$card\")); " +
             "      echo \"AMD|$model\"; exit 0; " +
             "    fi; " +
             "  done; " +
@@ -282,7 +318,7 @@ Singleton {
                 const lines = text.trim().split("\n")
                 lines.forEach(line => {
                     if (line.startsWith("USAGE=")) {
-                        root.amdUsagePath = line.slice(7)
+                        root.amdUsagePath = line.slice(6)
                         amdUsageFileView.path = root.amdUsagePath
                     } else if (line.startsWith("TEMP=")) {
                         root.amdTempPath = line.slice(5)
@@ -294,20 +330,44 @@ Singleton {
     }
 
     // ── Disk space polling — no more `while true; do df; sleep 5; done` ─
-    // One-shot `df` invocation driven by a QML Timer. Each tick forks a
-    // short-lived bash that dies immediately after parsing stdout (no
-    // zombie sleep loop waiting on a SIGTERM that never comes).
+    // One-shot `df` invocation driven by a QML Timer, covering every mount
+    // in Config.options.resources.diskMounts (default just "/"). Each tick
+    // forks a short-lived bash that dies immediately after parsing stdout.
     Process {
         id: diskSpaceProc
-        command: ["bash", "-c", "LANG=C LC_ALL=C df -B1 / | awk 'NR==2{print $2, $3, $4}'"]
+        property list<string> mounts: Config.options?.resources?.diskMounts ?? ["/"]
+        command: ["bash", "-c",
+            "LANG=C LC_ALL=C df -B1 " + mounts.map(m => "'" + m + "'").join(" ") +
+            " | awk 'NR>1{print $2, $3, $4, $6}'"
+        ]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
-                const parts = text.trim().split(/\s+/)
-                if (parts.length >= 3) {
-                    root.diskTotal = Number(parts[0])
-                    root.diskUsed = Number(parts[1])
-                    root.diskFree = Number(parts[2])
+                const lines = text.trim().split("\n").filter(l => l.length > 0)
+                const list = []
+                lines.forEach(line => {
+                    const parts = line.trim().split(/\s+/)
+                    if (parts.length >= 4) {
+                        const total = Number(parts[0])
+                        const used = Number(parts[1])
+                        const free = Number(parts[2])
+                        const mountpoint = parts.slice(3).join(" ")
+                        list.push({
+                            mountpoint: mountpoint,
+                            total: total,
+                            used: used,
+                            free: free,
+                            usedPercentage: total > 0 ? used / total : 0
+                        })
+                    }
+                })
+                root.diskList = list
+                // Keep single-disk properties mirroring the first mount for
+                // anything still reading diskTotal/diskUsed/diskFree directly.
+                if (list.length > 0) {
+                    root.diskTotal = list[0].total
+                    root.diskUsed = list[0].used
+                    root.diskFree = list[0].free
                 }
             }
         }

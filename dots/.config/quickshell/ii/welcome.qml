@@ -349,7 +349,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
 
                         ContentSubsection {
-                            title: "Weeb"
+                            title: "Anime"
 
                             ConfigSelectionArray {
                                 currentValue: Config.options.policies.weeb

@@ -44,7 +44,7 @@ fi
 
 RECORDING_DIR=""
 
-TIMER_PID=""  
+TIMER_PID=""
 SECONDS_ELAPSED=-1
 
 if [[ -n "$CUSTOM_PATH" ]]; then
@@ -58,7 +58,7 @@ start_timer() {
         kill "$TIMER_PID" 2>/dev/null
     fi
 
-    ( 
+    (
         while true; do
             IS_PAUSED=$(jq -r ".screenRecord.paused" "$STATE_FILE" 2>/dev/null)
             if [[ "$IS_PAUSED" != "true" ]]; then
@@ -106,6 +106,40 @@ getactivemonitor() {
     echo "$active"
 }
 
+detect_vaapi_device() {
+    local cache_file="$HOME/.cache/quickshell_vaapi_device"
+    if [[ -f "$cache_file" ]]; then
+        local cached
+        cached=$(cat "$cache_file")
+        if [[ -e "$cached" ]]; then
+            echo "$cached"
+            return
+        fi
+    fi
+
+    local best=""
+    for dev in /dev/dri/renderD*; do
+        [[ -e "$dev" ]] || continue
+        if command -v vainfo &> /dev/null; then
+            if vainfo --display drm --device "$dev" 2>/dev/null | grep -qi "VAEntrypointEncSlice\|VAEntrypointEncPicture"; then
+                best="$dev"
+                break
+            fi
+        else
+            best="$dev"
+            break
+        fi
+    done
+
+    if [[ -z "$best" ]]; then
+        best="/dev/dri/renderD128"
+    fi
+
+    mkdir -p "$HOME/.cache"
+    echo "$best" > "$cache_file"
+    echo "$best"
+}
+
 get_best_codec() {
     # If the user explicitly chose a CPU codec:
     if [[ "$REC_CODEC" == "libx264" || "$REC_CODEC" == "libx265" ]]; then
@@ -135,7 +169,7 @@ get_best_codec() {
     # If "auto" or the chosen GPU codec is not available, auto-detect:
     if ffmpeg -encoders 2>/dev/null | grep -q "h264_nvenc"; then
         echo "h264_nvenc"
-    elif ffmpeg -encoders 2>/dev/null | grep -q "h264_vaapi" && [ -e /dev/dri/renderD128 ]; then
+    elif ffmpeg -encoders 2>/dev/null | grep -q "h264_vaapi" && ls /dev/dri/renderD* &>/dev/null; then
         echo "h264_vaapi"
     elif ffmpeg -encoders 2>/dev/null | grep -q "h264_amf"; then
         echo "h264_amf"
@@ -168,7 +202,7 @@ updatestate() {
 
 toggle_pause() {
     local current_paused=$(jq -r ".screenRecord.paused" "$STATE_FILE" 2>/dev/null)
-    
+
     if [[ "$current_paused" == "true" ]]; then
         jq ".screenRecord.paused = false" "$STATE_FILE" > "${STATE_FILE}.tmp" && mv "${STATE_FILE}.tmp" "$STATE_FILE"
         notify-send "Recording Resumed" -a 'Recorder' &
@@ -218,7 +252,7 @@ for ((i=0;i<${#ARGS[@]};i++)); do
 done
 IS_OBS_RECORDING=0
 if pgrep -x "obs" > /dev/null || pgrep -f "com.obsproject.Studio" > /dev/null; then
-    STATUS=$(python3 "/home/pedro/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
+    STATUS=$(python3 "/home/xenna/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
     if [[ "$STATUS" == "active" ]]; then
         IS_OBS_RECORDING=1
     fi
@@ -226,7 +260,7 @@ fi
 
 if [[ $IS_OBS_RECORDING -eq 1 ]]; then
     notify-send "Stopping OBS Recording..." "Saving file..." -a 'Recorder' &
-    python3 "/home/pedro/.config/quickshell/ii/scripts/videos/obs_control.py" stop
+    python3 "/home/xenna/.config/quickshell/ii/scripts/videos/obs_control.py" stop
     sleep 1.5
     pkill -x "obs" || pkill -f "com.obsproject.Studio"
     exit 0
@@ -289,7 +323,7 @@ if [[ -n "$OBS_CMD" ]]; then
     # can keep waiting instead of mistaking the failure for an idle recording state.
     WEBSOCKET_READY=0
     for i in {1..30}; do
-        STATUS=$(python3 "/home/pedro/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
+        STATUS=$(python3 "/home/xenna/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
         if [[ "$STATUS" == "inactive" || "$STATUS" == "active" ]]; then
             WEBSOCKET_READY=1
             break
@@ -305,7 +339,7 @@ if [[ -n "$OBS_CMD" ]]; then
     fi
 
     notify-send "Starting OBS Recording..." "Triggering via WebSocket" -a 'Recorder' &
-    python3 "/home/pedro/.config/quickshell/ii/scripts/videos/obs_control.py" start
+    python3 "/home/xenna/.config/quickshell/ii/scripts/videos/obs_control.py" start
 
     # Wait for the recording to actually become active before entering the watchdog
     # loop. This is critical: a Wayland pipewire-screen-cast source may pop up the
@@ -317,7 +351,7 @@ if [[ -n "$OBS_CMD" ]]; then
         if ! pgrep -x "obs" > /dev/null && ! pgrep -f "com.obsproject.Studio" > /dev/null; then
             break
         fi
-        STATUS=$(python3 "/home/pedro/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
+        STATUS=$(python3 "/home/xenna/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
         if [[ "$STATUS" == "active" ]]; then
             RECORDING_ACTIVE=1
             break
@@ -345,7 +379,7 @@ if [[ -n "$OBS_CMD" ]]; then
         if ! pgrep -x "obs" > /dev/null && ! pgrep -f "com.obsproject.Studio" > /dev/null; then
             break
         fi
-        STATUS=$(python3 "/home/pedro/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
+        STATUS=$(python3 "/home/xenna/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
         if [[ "$STATUS" != "active" ]]; then
             # Recording stopped. Give OBS a moment to flush the file, then close it.
             sleep 1
@@ -354,7 +388,7 @@ if [[ -n "$OBS_CMD" ]]; then
         fi
         sleep 1
     done
-    
+
     if [[ -n "$MANUAL_REGION" ]]; then
         notify-send "Processing Region..." "Cropping video, please wait..." -a 'Recorder' &
         LATEST_FILE=$(ls -1t | grep -E '\.(mp4|mkv|flv|mov)$' | head -1)
@@ -365,7 +399,7 @@ if [[ -n "$OBS_CMD" ]]; then
              H=$(echo "$MANUAL_REGION" | cut -d' ' -f2 | cut -d'x' -f2)
              X=$(echo "$MANUAL_REGION" | cut -d' ' -f1 | cut -d',' -f1)
              Y=$(echo "$MANUAL_REGION" | cut -d' ' -f1 | cut -d',' -f2)
-             
+
              ffmpeg -i "$LATEST_FILE" -filter:v "crop=$W:$H:$X:$Y" "cropped_$LATEST_FILE" -y && mv "cropped_$LATEST_FILE" "$LATEST_FILE"
              notify-send "Region Recording Finished" "Saved to $LATEST_FILE" -a 'Recorder' &
         fi
@@ -380,12 +414,12 @@ if [[ -n "$OBS_CMD" ]]; then
     exit 0
 else
     FILENAME="recording_$(getdate).mp4"
-    
+
     CODEC=$(get_best_codec)
     CODEC_OPTS=("-c" "$CODEC" "-r" "$REC_FRAMERATE" "-p" "b=${REC_BITRATE}M")
-    
+
     if [[ "$CODEC" == "h264_vaapi" || "$CODEC" == "hevc_vaapi" ]]; then
-        CODEC_OPTS+=("-d" "/dev/dri/renderD128" "--pixel-format" "nv12")
+        CODEC_OPTS+=("-d" "$(detect_vaapi_device)" "--pixel-format" "nv12")
     elif [[ "$CODEC" == "h264_amf" || "$CODEC" == "hevc_amf" ]]; then
         CODEC_OPTS+=("--pixel-format" "nv12")
     elif [[ "$CODEC" == "h264_nvenc" || "$CODEC" == "hevc_nvenc" ]]; then
@@ -394,13 +428,50 @@ else
         CODEC_OPTS+=("--pixel-format" "yuv420p")
     fi
 
-    if [[ $FULLSCREEN_FLAG -eq 1 ]]; then
+run_recorder() {
+    # Runs wf-recorder with the given args. If it's a GPU codec and it dies
+    # almost immediately (filter-graph errors, driver issues, etc.), retry
+    # once with libx264 so a broken hw encoder doesn't kill recording outright.
+    local start_ts end_ts elapsed
+    start_ts=$(date +%s)
+
+    wf-recorder "$@"
+    local exit_code=$?
+
+    end_ts=$(date +%s)
+    elapsed=$((end_ts - start_ts))
+
+    if [[ $exit_code -ne 0 && $elapsed -lt 3 && ( "$CODEC" == *_vaapi || "$CODEC" == *_amf || "$CODEC" == *_nvenc ) ]]; then
+        notify-send "GPU encoder failed" "Falling back to CPU encoding (libx264)" -a 'Recorder' &
+        local fallback_args=()
+        local skip_next=0
+        for arg in "$@"; do
+            if [[ $skip_next -eq 1 ]]; then
+                skip_next=0
+                continue
+            fi
+            case "$arg" in
+                -c) fallback_args+=("-c" "libx264"); skip_next=0; continue ;;
+                "$CODEC") continue ;;
+                -d) skip_next=1; continue ;;
+                --pixel-format) skip_next=1; fallback_args+=("--pixel-format" "yuv420p"); continue ;;
+                *) fallback_args+=("$arg") ;;
+            esac
+        done
+        wf-recorder "${fallback_args[@]}"
+        exit_code=$?
+    fi
+
+    return $exit_code
+}
+
+if [[ $FULLSCREEN_FLAG -eq 1 ]]; then
         notify-send "Starting recording" "$FILENAME" -a 'Recorder' & disown
         updatestate true
         if [[ $SOUND_FLAG -eq 1 ]]; then
-            wf-recorder -o "$(getactivemonitor)" "${CODEC_OPTS[@]}" -f "$FILENAME" --audio="$(getaudiooutput)"
+            run_recorder -o "$(getactivemonitor)" "${CODEC_OPTS[@]}" -f "$FILENAME" --audio="$(getaudiooutput)"
         else
-            wf-recorder -o "$(getactivemonitor)" "${CODEC_OPTS[@]}" -f "$FILENAME" 
+            run_recorder -o "$(getactivemonitor)" "${CODEC_OPTS[@]}" -f "$FILENAME"
         fi
     else
         # If a manual region was provided via --region, use it; otherwise run slurp as before.
@@ -423,9 +494,9 @@ else
         notify-send "Starting recording" "$FILENAME" -a 'Recorder' & disown
         updatestate true
         if [[ $SOUND_FLAG -eq 1 ]]; then
-            wf-recorder -o "$(getactivemonitor)" "${CODEC_OPTS[@]}" -f "$FILENAME"  --geometry "$geometry" --audio="$(getaudiooutput)"
+            run_recorder -o "$(getactivemonitor)" "${CODEC_OPTS[@]}" -f "$FILENAME"  --geometry "$geometry" --audio="$(getaudiooutput)"
         else
-            wf-recorder -o "$(getactivemonitor)" "${CODEC_OPTS[@]}" -f "$FILENAME"  --geometry "$geometry"
+            run_recorder -o "$(getactivemonitor)" "${CODEC_OPTS[@]}" -f "$FILENAME"  --geometry "$geometry"
         fi
     fi
 

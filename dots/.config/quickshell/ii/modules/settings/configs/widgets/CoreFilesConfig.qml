@@ -111,6 +111,8 @@ ContentPage {
             buttonIcon: "movie"
             textRole: "displayName"
             visible: Config.options.screenRecord.service === "wf-recorder"
+            enabled: Config.options.screenRecord.useGpu
+            opacity: enabled ? 1.0 : 0.5
             model: [
                 {
                     displayName: Translation.tr("Auto (Recommended)"),
@@ -158,7 +160,7 @@ ContentPage {
             }
             StyledToolTip {
                 parent: recorderCodecSelector2
-                text: Translation.tr("Auto automatically selects the best hardware encoder on your system. NVENC is for Nvidia, VA-API is for Intel/AMD, and AMF is for AMD. CPU encodes via software and uses more resources.")
+                text: recorderCodecSelector2.enabled ? Translation.tr("Auto automatically selects the best hardware encoder on your system. NVENC is for Nvidia, VA-API is for Intel/AMD, and AMF is for AMD. CPU encodes via software and uses more resources.") : Translation.tr("Turn on GPU Hardware Acceleration above to pick a hardware codec. While it's off, recording always falls back to the CPU encoder regardless of what's selected here.")
             }
         }
 
