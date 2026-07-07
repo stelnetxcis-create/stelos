@@ -192,7 +192,25 @@ fi
 
 # ── Submodules ───────────────────────────────────────────────────────────────
 log "Syncing submodules..."
-git submodule update --init --recursive || warn "Some submodules failed"
+git submodule update --init --recursive
+
+SUBMODULE_OK=true
+while IFS= read -r submodule_path; do
+    [[ -z "$submodule_path" ]] && continue
+    full_path="$FORK_DIR/$submodule_path"
+    if [[ ! -d "$full_path" ]] || [[ -z "$(ls -A "$full_path" 2>/dev/null)" ]]; then
+        warn "Submodule '$submodule_path' is empty, retrying..."
+        git submodule update --init --recursive --force -- "$submodule_path"
+        if [[ ! -d "$full_path" ]] || [[ -z "$(ls -A "$full_path" 2>/dev/null)" ]]; then
+            warn "Submodule '$submodule_path' still empty after retry."
+            SUBMODULE_OK=false
+        fi
+    fi
+done < <(git config -f .gitmodules --get-regexp path 2>/dev/null | awk '{print $2}')
+
+if [ "$SUBMODULE_OK" = "false" ]; then
+    quit "One or more submodules failed to populate. Not applying config (this would leave your install broken). Check your network connection and re-run this script."
+fi
 
 # ── Install ──────────────────────────────────────────────────────────────────
 TARGET_INSTALL_DIR="$FULL_INSTALL" && true
