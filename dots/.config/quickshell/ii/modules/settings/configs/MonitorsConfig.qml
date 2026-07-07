@@ -512,6 +512,22 @@ ContentPage {
         }
     }
 
+    NoticeBox {
+        Layout.fillWidth: true
+        visible: monitorConfig.revertAvailable
+        text: Translation.tr(`A previous monitor config was backed up${monitorConfig.revertTimestamp ? " (" + monitorConfig.revertTimestamp + ")" : ""}. If a recent change (resolution, color management, StelSync) left a display unusable, you can restore it here instead of editing config files manually.`)
+
+        RippleButtonWithIcon {
+            buttonRadius: Appearance.rounding.small
+            materialIcon: "history"
+            mainText: Translation.tr("Revert to Last Known Good")
+            Layout.fillWidth: false
+            onClicked: {
+                revertConfirmDialog.show = true;
+            }
+        }
+    }
+
     function moveSelectedMonitor(dx, dy) {
         const idx = monitorCanvas.selectedIndex;
         if (idx >= 0 && idx < monitorConfig.monitors.length) {
@@ -1301,6 +1317,38 @@ ContentPage {
                         profileNameInput.text = "";
                         createProfileDialog.show = false;
                     }
+                }
+            }
+        }
+    }
+
+    WindowDialog {
+        id: revertConfirmDialog
+        parent: page.parent ? page.parent : page
+        anchors.fill: parent
+        show: false
+        backgroundWidth: 320
+        onDismiss: show = false
+        z: 100000
+
+        WindowDialogTitle {
+            text: Translation.tr("Revert to Last Known Good?")
+        }
+
+        WindowDialogParagraph {
+            text: Translation.tr("This restores your monitor config (resolution, color management, StelSync, VRR) from the most recent backup, overwriting the current one. Use this if a recent change left a display unusable. This can't be undone from here — the config it overwrites isn't itself re-backed-up.")
+        }
+
+        WindowDialogButtonRow {
+            DialogButton {
+                buttonText: Translation.tr("Cancel")
+                onClicked: revertConfirmDialog.show = false
+            }
+            DialogButton {
+                buttonText: Translation.tr("Revert")
+                onClicked: {
+                    monitorConfig.revertToLastGood();
+                    revertConfirmDialog.show = false;
                 }
             }
         }

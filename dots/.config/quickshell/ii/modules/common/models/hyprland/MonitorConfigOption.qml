@@ -27,6 +27,7 @@ NestableObject {
             autoAdaptStateProc.running = true;
             fetchProc.running = true;
             hyprmonCheckProc.running = true;
+            checkRevertAvailable();
             reloadProfiles();
         });
     }
@@ -198,11 +199,84 @@ echo "$result"
             + (luaLines.length ? luaLines.join("\n") + "\n" : "");
         const namesJson = JSON.stringify(names);
 
+        // Back up the current autoadapt.lua + state (if they exist) before overwriting,
+        // using the same ~/.config/hypr/hyprmon_backups directory and .bak.<timestamp>
+        // naming HyprMon itself already uses, capped at the last 20 the same way, so
+        // "Revert to last known good" has something to restore from either path.
         autoAdaptSaveProc.command = ["bash", "-c",
-            "mkdir -p ~/.config/hypr && cat << 'EOF' > ~/.config/hypr/autoadapt.lua\n" + luaContent + "EOF\n"
+            "mkdir -p ~/.config/hypr/hyprmon_backups\n"
+            + "ts=$(date +%s)\n"
+            + "[ -f ~/.config/hypr/autoadapt.lua ] && cp ~/.config/hypr/autoadapt.lua ~/.config/hypr/hyprmon_backups/autoadapt.lua.bak.$ts\n"
+            + "[ -f ~/.config/hypr/autoadapt_state.json ] && cp ~/.config/hypr/autoadapt_state.json ~/.config/hypr/hyprmon_backups/autoadapt_state.json.bak.$ts\n"
+            + "ls -t ~/.config/hypr/hyprmon_backups/autoadapt.lua.bak.* 2>/dev/null | tail -n +21 | xargs rm -f 2>/dev/null || true\n"
+            + "ls -t ~/.config/hypr/hyprmon_backups/autoadapt_state.json.bak.* 2>/dev/null | tail -n +21 | xargs rm -f 2>/dev/null || true\n"
+            + "mkdir -p ~/.config/hypr && cat << 'EOF' > ~/.config/hypr/autoadapt.lua\n" + luaContent + "EOF\n"
             + "cat << 'EOF' > ~/.config/hypr/autoadapt_state.json\n" + namesJson + "\nEOF\n"
             + "hyprctl reload"];
         autoAdaptSaveProc.running = true;
+    }
+
+    property bool revertAvailable: false
+    property string revertTimestamp: ""
+
+    function checkRevertAvailable() {
+        revertCheckProc.command = ["bash", "-c",
+            "ls -t ~/.config/hypr/hyprmon_backups/*.bak.* 2>/dev/null | head -1"];
+        revertCheckProc.running = true;
+    }
+
+    Process {
+        id: revertCheckProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const line = text.trim();
+                root.revertAvailable = line.length > 0;
+                if (line.length > 0) {
+                    const m = line.match(/\.bak\.(\d+)$/);
+                    if (m) {
+                        const d = new Date(parseInt(m[1]) * 1000);
+                        root.revertTimestamp = d.toLocaleString(Qt.locale(), "MMM d, hh:mm");
+                    }
+                }
+            }
+        }
+    }
+
+    // Restores the most recent backed-up hyprmon.lua AND autoadapt.lua (+ its state file)
+    // together as one unit, since a single "revert" should put the whole monitor config
+    // back to a consistent prior state rather than mixing an old hyprmon.lua with a
+    // newer autoadapt.lua that assumes different things about it.
+    function revertToLastGood() {
+        const script = `
+BACKUP_DIR=~/.config/hypr/hyprmon_backups
+restore_latest() {
+    local pattern="$1"
+    local dest="$2"
+    local latest
+    latest=$(ls -t "$BACKUP_DIR"/$pattern 2>/dev/null | head -1)
+    if [ -n "$latest" ]; then
+        cp "$latest" "$dest"
+        echo "restored: $latest -> $dest"
+    fi
+}
+restore_latest "hyprmon.lua.bak.*" ~/.config/hypr/hyprmon.lua
+restore_latest "autoadapt.lua.bak.*" ~/.config/hypr/autoadapt.lua
+restore_latest "autoadapt_state.json.bak.*" ~/.config/hypr/autoadapt_state.json
+hyprctl reload
+`;
+        revertProc.command = ["bash", "-c", script];
+        revertProc.running = true;
+    }
+
+    Process {
+        id: revertProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                Quickshell.execDetached(["notify-send", "StelSync", Translation.tr("Reverted to last known good monitor config.")]);
+                autoAdaptStateProc.running = true;
+                monitorEventFetchDelay.restart();
+            }
+        }
     }
 
     Process {
@@ -477,6 +551,7 @@ echo "$result"
         id: saveProc
         onRunningChanged: if (!running) {
             delayFetchTimer.restart();
+            checkRevertAvailable();
         }
     }
     Process {
@@ -521,6 +596,7 @@ echo "$result"
         id: applyProfileProc
         onRunningChanged: if (!running) {
             delayFetchTimer.restart();
+            checkRevertAvailable();
         }
     }
 

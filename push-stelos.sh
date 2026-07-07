@@ -22,20 +22,33 @@ fi
 
 cd "$STELOS_DIR"
 
+WORKING_TREE_CLEAN=false
 if git diff --quiet && git diff --cached --quiet && [[ -z "$(git status --porcelain)" ]]; then
-    echo "Nothing to commit — working tree is clean."
+    WORKING_TREE_CLEAN=true
+fi
+
+if [[ "$WORKING_TREE_CLEAN" == false ]]; then
+    git add -A
+    if git diff --cached --quiet; then
+        echo "Nothing staged to commit after add."
+    else
+        git commit -m "$COMMIT_MSG"
+    fi
+fi
+
+# Check whether there's anything to actually push, regardless of whether a
+# new commit was just made - a clean working tree can still be ahead of
+# origin (e.g. a prior commit that was made but never successfully pushed).
+git fetch origin --quiet 2>/dev/null || true
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")"
+AHEAD_COUNT="$(git rev-list --count "origin/$CURRENT_BRANCH..HEAD" 2>/dev/null || echo "0")"
+
+if [[ "$AHEAD_COUNT" == "0" ]]; then
+    echo "Nothing to push — already up to date with origin/$CURRENT_BRANCH."
     exit 0
 fi
 
-git add -A
-
-if git diff --cached --quiet; then
-    echo "Nothing staged to commit after add."
-    exit 0
-fi
-
-git commit -m "$COMMIT_MSG"
-
+echo "$AHEAD_COUNT commit(s) ahead of origin/$CURRENT_BRANCH — pushing..."
 echo "Pushing to origin..."
 if git push; then
     echo "✓ Pushed successfully."
