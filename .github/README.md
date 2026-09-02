@@ -1,15 +1,15 @@
-# [ StelOS / StelNet ]
+# [ StelOS ]
 
 Premium Material 3 / Material You dotfiles for Hyprland, powered by Quickshell.
 
 ## System Preview
 
-<img width="1924" height="1095" alt="Screenshots_ii-stelnet" src="https://github.com/user-attachments/assets/dd08c71b-0965-4f9c-9c58-01271fd24e67" />
+<img width="1924" height="1095" alt="StelOS desktop preview" src="REPLACE_WITH_YOUR_SCREENSHOT_URL" />
 
 
 ## Overview
 
-**StelNet** is the Quickshell configuration layer for **StelOS**, built on top of **[illogical-impulse](https://github.com/end-4/dots-hyprland)**. **This is a personal customization by Cyna. It's not focused on performance or stability — if you use it, expect a lot of bugs.** If you find one, please open an issue on this repository.
+**StelOS** is a personal, agentic desktop OS by Cyna, with its Quickshell configuration layer (**StelNetQS**) built on top of **[illogical-impulse](https://github.com/end-4/dots-hyprland)**. **This is a personal customization. It's not focused on performance or stability — if you use it, expect a lot of bugs.** If you find one, please open an issue on this repository.
 
 It aims to provide a state-of-the-art Linux desktop experience by strictly adhering to **Material 3 (Material You)** design principles, featuring dynamic theming via Matugen and a highly modular architecture built on **Quickshell**.
 
@@ -30,7 +30,7 @@ It aims to provide a state-of-the-art Linux desktop experience by strictly adher
 ### Default installation
 
 Use this if you don't have illogical-impulse already installed. It sets up the base
-dotfiles and everything they need, then puts the StelNet config on top.
+dotfiles and everything they need, then puts the StelNetQS config on top.
 
 ```bash
 git clone --recurse-submodules https://github.com/stelnetxcis-create/stelos.git
@@ -40,7 +40,7 @@ cd stelos
 
 ### Minimal installation (only quickshell config)
 
-Use this if illogical-impulse is already working and you only want the StelNet Quickshell config.
+Use this if illogical-impulse is already working and you only want the StelNetQS Quickshell config.
 Nothing else is touched, and your current config is moved to a backup rather than deleted.
 
 ```bash
@@ -117,14 +117,9 @@ If rebuilding does not solve the problem, completely reinstall `quickshell-git` 
 
 ## Credits
 
-- **Cyna:** Creator of StelOS / StelNet.
 - **[end-4](https://github.com/end-4):** Creator of illogical-impulse.
-- **[pc-trade](https://github.com/pctrade):** Some design and features inspo.
-- **[so-do-i-look-like-him](https://github.com/so-do-i-look-like-him):** Installation bug fixes.
-- **[asteriau](https://github.com/asteriau):** Cheatsheet keybinds animations.
-- **[hnpf](https://github.com/hnpf):** Nothing widgets design
-- **[gowall](https://github.com/Achno/gowall):** Dynamic icons theme system.
-- **[hyprmon](https://github.com/erans/hyprmon):** Monitor management in settings.
+- **Cyna:** Creator of StelOS.
+- **Xenna:** Agentic assistant behind StelOS.
 - **[Quickshell](https://quickshell.org/):** Widget system.
 - **[Hyprland](https://hypr.land/):** Compositor.
 

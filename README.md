@@ -1,6 +1,6 @@
-# 🌌 StelNet: Quickshell Dotfiles Manager
+# 🌌 StelOS: Quickshell Dotfiles Manager
 
-A powerful and flexible environment manager for StelNet (Quickshell + Hyprland). StelOS adds advanced source switching and update capabilities directly from your Quickshell settings.
+A powerful and flexible environment manager for StelNetQS (Quickshell + Hyprland). StelOS adds advanced source switching and update capabilities directly from your Quickshell settings.
 
 ---
 
@@ -16,7 +16,7 @@ A powerful and flexible environment manager for StelNet (Quickshell + Hyprland).
 
 ## 🚀 Installation
 
-To install **StelNet** and set up the management environment, clone this repository and run the setup script:
+To install **StelOS** and set up the management environment, clone this repository and run the setup script:
 
 ```bash
 git clone https://github.com/stelnetxcis-create/stelos.git ~/Downloads/stelos
@@ -43,14 +43,14 @@ For a full setup guide, code diffs, and detailed configuration parameters, check
 
 ## 🔄 Managing Sources
 
-You can switch between your personal fork and the official upstream repository directly from the **About** page in Quickshell Settings (`Super + S` -> About).
+You can switch between StelOS and illogical-impulse directly from the **About** page in Quickshell Settings (`Super + S` -> About).
 
 ### 🎛 UI Controls (Settings > About)
 
-The **Quickshell Source** section provides four main actions:
+The **Source** section provides two main actions:
 
-1.  **Switch Source (My Fork / Official)**:
-    *   **StelOS**: Installs the StelNet configuration.
+1.  **Switch Source (StelOS / illogical-impulse)**:
+    *   **StelOS**: Installs the StelNetQS configuration.
     *   **illogical-impulse (end-4)**: Installs the parent-dots configuration.
     *   *Both actions are local and fast, requiring no internet connection once cached.*
 
@@ -73,25 +73,31 @@ The installation script is designed to be "user-aware" and preserves your custom
 
 ## 🛠 Command Line Interface
 
-You can also manage the environment using the `vynx` CLI (automatically symlinked to `~/.local/bin/vynx`):
+You can also manage the environment using the `ii-stelnet` CLI (automatically symlinked to `~/.local/bin/ii-stelnet`):
 
 ```bash
+# Apply the current fork/branch (default action)
+ii-stelnet apply
+
+# Switch to StelOS, dev branch
+ii-stelnet switch --fork stelos --branch dev
+
 # Switch to illogical-impulse (end-4)
-vynx --ii-vynx --force-install --no-confirm
+ii-stelnet switch --fork end4
 
-# Switch to StelOS
-vynx --force-install --no-confirm
+# Refresh the active fork+branch from GitHub
+ii-stelnet update
 
-# Update StelOS repo only
-vynx --update-only
+# See every command
+ii-stelnet help
 ```
 
 ---
 
 ## 📝 Configuration
 
-The script auto-detects your environment. For developers, the `FORK_DIR` will prioritize `~/.local/share/ii-stelnet` if it exists, otherwise it will use the directory where the script is being executed.
+The script auto-detects your environment. For developers, `MIRROR_DIR` will prioritize `~/.local/share/ii-stelnet` if it exists, otherwise it will use the directory where the script is being executed.
 
 ---
 
-*Powered by [Antigravity AI](https://github.com/google-deepmind). StelOS / StelNet created by Cyna.*
+*Powered by [Antigravity AI](https://github.com/google-deepmind). StelOS created by Cyna, with Xenna as its agentic assistant.*
