@@ -280,7 +280,7 @@ class ReceiveEventParser:
     @staticmethod
     def _looks_like_alias_line(line):
         # Every other single-line "R ..." message embeds ": " right after
-        # the alias (e.g. "R Pedro's Phone: You accepted"). A bare alias
+        # the alias (e.g. "R Xenna's Phone: You accepted"). A bare alias
         # line never does, so this alone disambiguates the prompt's first
         # line without look-ahead.
         return ": " not in line[2:]

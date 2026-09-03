@@ -2,7 +2,7 @@
 
 `sync-tooling/reapply-rebrand.sh` fixes paths, ids, and labels in
 `AboutConfig.qml` automatically, but it deliberately does **not** try to
-auto-rewrite the card structure if Pedro's merge reintroduces the original
+auto-rewrite the card structure if a sync reintroduces the original
 3-card layout ("Upstream Info" + "This fork info" as separate cards). That's
 a structural QML change, not a text swap, and a blind find/replace risks
 mangling brace nesting.
@@ -76,7 +76,7 @@ model: [
 ]
 ```
 
-If Pedro's merge re-added a third `vynx`/`upstream` entry here, delete it.
+If the sync re-added a third `vynx`/`upstream` entry here, delete it.
 
 After hand-patching, re-run `reapply-rebrand.sh` once more (it's idempotent)
 to catch any paths/ids in the newly-merged text, then validate:

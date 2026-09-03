@@ -276,7 +276,7 @@ def call_openrouter(api_key: str, model_name: str, prompt: str) -> list[dict[str
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/pedro-lucas-mp/quickshell-ii",
+        "HTTP-Referer": "https://github.com/stelnetxcis-create/stelos",
         "X-Title": "Quickshell Cheatsheet",
     }
     payload = {

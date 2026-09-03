@@ -1576,6 +1576,12 @@ mirror_scripts() {
         find "$MIRROR_DIR/sdata" -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
         copied=$((copied + 1))
     fi
+    if [[ -d "$from/sync-tooling" ]]; then
+        rm -rf "$MIRROR_DIR/sync-tooling"
+        cp -a "$from/sync-tooling" "$MIRROR_DIR/sync-tooling"
+        find "$MIRROR_DIR/sync-tooling" -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
+        copied=$((copied + 1))
+    fi
     # Scripts that used to live here and no longer ship.
     local obsolete
     for obsolete in setup-ii-vynx.sh update-with-customs.sh; do
@@ -2089,6 +2095,25 @@ cmd_update() {
     apply_config "$url" "$branch" "$fork" "update"
 }
 
+cmd_sync() {
+    require_base
+
+    local script_dir
+    script_dir="$(cd -P "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" >/dev/null 2>&1 && pwd)"
+    local sync_script="$script_dir/sync-tooling/sync-from-xenna.sh"
+
+    if [[ ! -f "$sync_script" ]]; then
+        ui_fail "Sync tooling not found" "$(tilde "$sync_script")"
+        ui_note "This feature ships with the StelOS repo checkout, not the installed mirror."
+        ui_note "Run it from a full clone: cd ~/stelos-repo && bash sync-tooling/sync-from-xenna.sh"
+        exit 1
+    fi
+
+    ui_banner "StelNet" "sync"
+    ui_step "Pulling in Xenna's latest work"
+    bash "$sync_script"
+}
+
 cmd_switch() {
     require_base
     load_local_src
@@ -2265,6 +2290,7 @@ show_help() {
     printf '  %s%-16s%s %s\n' "$C_OK" "apply" "$C_RST" "Apply the Quickshell config (default)"
     printf '  %s%-16s%s %s\n' "$C_OK" "install" "$C_RST" "Install base illogical-impulse, then apply"
     printf '  %s%-16s%s %s\n' "$C_OK" "update" "$C_RST" "Refresh the active fork+branch from GitHub"
+    printf '  %s%-16s%s %s\n' "$C_OK" "sync" "$C_RST" "Pull Xenna's latest work into the StelOS source"
     printf '  %s%-16s%s %s\n' "$C_OK" "switch" "$C_RST" "Switch fork and/or branch"
     printf '  %s%-16s%s %s\n' "$C_OK" "fork <x> [br]" "$C_RST" "Shorthand for switch --fork <x> [--branch br]"
     printf '  %s%-16s%s %s\n' "$C_OK" "branch <name>" "$C_RST" "Shorthand for switch --branch <name>"
@@ -2511,7 +2537,7 @@ parse_args() {
         local first="${positional[0]}"
         case "$first" in
             apply | install | update | switch | fork | branch | list-forks | list-branches | \
-                restart | run | doctor | remove-cli | hyprset | hyprmerge | help | version | demo)
+                restart | run | doctor | remove-cli | hyprset | hyprmerge | help | version | demo | sync)
                 COMMAND="$first"
                 positional=("${positional[@]:1}")
                 ;;
@@ -2606,6 +2632,7 @@ main() {
         doctor) cmd_doctor ;;
         list-forks) cmd_list_forks ;;
         list-branches) cmd_list_branches ;;
+        sync) cmd_sync ;;
         apply | install | update | switch)
             if [[ "$OPT_REBUILD_QS" == true ]]; then
                 build_quickshell || exit 1

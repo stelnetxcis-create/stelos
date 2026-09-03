@@ -148,15 +148,15 @@ console.log("Running devtools.js unit tests...\n");
 
 // 7. JWT Decoder
 {
-    // Standard test JWT (header: {"alg":"HS256","typ":"JWT"}, payload: {"sub":"1234567890","name":"Pedro","admin":true,"iat":1516239022})
-    const testJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IlBlZHJvIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+    // Standard test JWT (header: {"alg":"HS256","typ":"JWT"}, payload: {"sub":"1234567890","name":"Xenna","admin":true,"iat":1516239022})
+    const testJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ilhlbm5hIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
     const decoded = devtools.toolJwtDecode(testJwt);
     assert.ok(!decoded.error);
     assert.equal(decoded.meta.header.alg, "HS256");
-    assert.equal(decoded.meta.payload.name, "Pedro");
+    assert.equal(decoded.meta.payload.name, "Xenna");
     assert.equal(decoded.meta.payload.admin, true);
     assert.ok(decoded.output.includes("⚠️ Note: Signature is not verified"));
-    assert.ok(decoded.output.includes("Pedro"));
+    assert.ok(decoded.output.includes("Xenna"));
 
     const invalidJwt = devtools.toolJwtDecode("invalid.jwt");
     assert.ok(invalidJwt.error);
@@ -186,9 +186,9 @@ console.log("Running devtools.js unit tests...\n");
     const escRegex = devtools.toolEscapeString(regexStr, { mode: "regex" });
     assert.equal(escRegex.output, "foo\\.bar\\*\\[123\\]\\?\\(test\\)");
 
-    const shellStr = `Pedro's Mac "Pro" $PATH`;
+    const shellStr = `Xenna's Mac "Pro" $PATH`;
     const escShell = devtools.toolEscapeString(shellStr, { mode: "shell_single" });
-    assert.equal(escShell.output, `Pedro'\\''s Mac "Pro" $PATH`);
+    assert.equal(escShell.output, `Xenna'\\''s Mac "Pro" $PATH`);
     console.log("✓ Escape string tests passed");
 }
 

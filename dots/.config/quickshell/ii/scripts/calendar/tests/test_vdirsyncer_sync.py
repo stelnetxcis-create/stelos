@@ -45,10 +45,10 @@ class VdirsyncerSyncTests(unittest.TestCase):
         self.temp.cleanup()
 
     def test_resolves_the_pair_for_the_calendar_directory(self) -> None:
-        calendar_root = self.local_root / "pedro@example.com"
+        calendar_root = self.local_root / "xenna@example.com"
         self.assertEqual(
-            SYNC.resolve_target("pedro@example.com", calendar_root, self.config),
-            "personal_sync/pedro@example.com",
+            SYNC.resolve_target("xenna@example.com", calendar_root, self.config),
+            "personal_sync/xenna@example.com",
         )
 
     def test_does_not_target_an_unrelated_filesystem_storage(self) -> None:

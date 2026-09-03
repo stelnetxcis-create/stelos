@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# reapply-rebrand.sh — turns a fresh checkout of Pedro's ii-p3drovfx into StelOS.
+# reapply-rebrand.sh — turns a fresh checkout of Xenna's working tree into StelOS.
 #
-# Run this from the repo root AFTER merging/checking out Pedro's latest code
-# (e.g. after `git merge pedro-upstream/dev`). It is idempotent: running it
+# Run this from the repo root AFTER merging/checking out Xenna's latest code
+# (e.g. after `git merge xenna/dev`). It is idempotent: running it
 # twice in a row on an already-rebranded tree is a safe no-op.
 #
 # What it does NOT touch, on purpose:
 #   - The real upstream clone URL (https://github.com/P3DROVFX/ii-p3drovfx)
 #     used internally by setup-ii-stelnet.sh / ChangelogService.qml / etc.
-#     to silently pull Pedro's code and commit history.
+#     to silently pull Xenna's code and commit history.
 #   - Any file/script/CLI internal name other than the ones explicitly
 #     listed below (ii-p3drovfx -> ii-stelnet, fork id p3drovfx -> stelos).
 #   - The dots/.config/quickshell/ii/README.md commit permalinks.
@@ -25,7 +25,7 @@ cd "$(dirname "$0")/.."   # repo root, assuming this script lives in ./sync-tool
 echo "== StelOS rebrand pass =="
 
 # ---------------------------------------------------------------------------
-# Step 1: rename the main script file, if a fresh Pedro pull re-created it
+# Step 1: rename the main script file, if a fresh sync re-created it
 # under its original name.
 # ---------------------------------------------------------------------------
 if [[ -f setup-ii-p3drovfx.sh && ! -f setup-ii-stelnet.sh ]]; then
@@ -33,7 +33,7 @@ if [[ -f setup-ii-p3drovfx.sh && ! -f setup-ii-stelnet.sh ]]; then
     git mv setup-ii-p3drovfx.sh setup-ii-stelnet.sh
 elif [[ -f setup-ii-p3drovfx.sh && -f setup-ii-stelnet.sh ]]; then
     echo "WARNING: both setup-ii-p3drovfx.sh and setup-ii-stelnet.sh exist."
-    echo "         Pedro's merge likely re-added the old filename. Diff them"
+    echo "         The sync likely re-added the old filename. Diff them"
     echo "         by hand: diff setup-ii-p3drovfx.sh setup-ii-stelnet.sh"
 fi
 
@@ -55,7 +55,7 @@ path = sys.argv[1]
 with open(path, encoding="utf-8") as f:
     s = f.read()
 
-PLACEHOLDER = "@@PEDRO_URL@@"
+PLACEHOLDER = "@@SOURCE_URL@@"
 real_url = "https://github.com/P3DROVFX/ii-p3drovfx"
 s = s.replace(real_url, PLACEHOLDER)
 
@@ -81,7 +81,7 @@ fi
 
 # ---------------------------------------------------------------------------
 # Step 3: update-fork.sh, hyprmerge.sh, hyprset.sh — same legacy-fallback
-# pattern every time. Only touch these if they still look like Pedro's
+# pattern every time. Only touch these if they still look like the
 # fresh, unrebranded file (i.e. the *primary* config path still says
 # ii-p3drovfx) — otherwise we'd clobber our own intentional legacy-fallback
 # lines that are SUPPOSED to keep saying ii-p3drovfx.
@@ -201,7 +201,7 @@ fi
 
 # ---------------------------------------------------------------------------
 # Step 7: AboutConfig.qml — the structural one. Only run the card-merge
-# surgery if the old 3-card structure is detected (i.e. Pedro's merge
+# surgery if the old 3-card structure is detected (i.e. the sync
 # reintroduced the original "Upstream Info" / "This fork info" cards).
 # Otherwise just fix paths/ids/labels, since our consolidated card already
 # exists.
@@ -235,4 +235,4 @@ fi
 
 echo ""
 echo "== Done. Review with: git status && git diff --stat =="
-echo "== Then: git add -A && git commit -m 'Sync from Pedro dev + reapply rebrand' =="
+echo "== Then: git add -A && git commit -m 'Sync Xenna work + reapply rebrand' =="

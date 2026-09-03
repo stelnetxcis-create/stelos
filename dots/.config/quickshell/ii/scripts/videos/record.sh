@@ -381,7 +381,7 @@ fi
 IS_OBS_RECORDING=0
 if [[ "$REC_SERVICE" == "obs" ]]; then
     if pgrep -x "obs" > /dev/null || pgrep -f "com.obsproject.Studio" > /dev/null; then
-        STATUS=$(python3 "/home/pedro/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
+        STATUS=$(python3 "/home/xenna/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
         if [[ "$STATUS" == "active" ]]; then
             IS_OBS_RECORDING=1
         fi
@@ -400,7 +400,7 @@ fi
 
 if [[ $IS_OBS_RECORDING -eq 1 ]]; then
     notify-send "Stopping OBS Recording..." "Saving file..." -a 'Recorder' &
-    python3 "/home/pedro/.config/quickshell/ii/scripts/videos/obs_control.py" stop
+    python3 "/home/xenna/.config/quickshell/ii/scripts/videos/obs_control.py" stop
     sleep 1.5
     pkill -x "obs" || pkill -f "com.obsproject.Studio"
     exit 0
@@ -456,7 +456,7 @@ if [[ -n "$OBS_CMD" ]]; then
     # can keep waiting instead of mistaking the failure for an idle recording state.
     WEBSOCKET_READY=0
     for i in {1..30}; do
-        STATUS=$(python3 "/home/pedro/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
+        STATUS=$(python3 "/home/xenna/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
         if [[ "$STATUS" == "inactive" || "$STATUS" == "active" ]]; then
             WEBSOCKET_READY=1
             break
@@ -472,7 +472,7 @@ if [[ -n "$OBS_CMD" ]]; then
     fi
 
     notify-send "Starting OBS Recording..." "Triggering via WebSocket" -a 'Recorder' &
-    python3 "/home/pedro/.config/quickshell/ii/scripts/videos/obs_control.py" start
+    python3 "/home/xenna/.config/quickshell/ii/scripts/videos/obs_control.py" start
 
     # Wait for the recording to actually become active before entering the watchdog
     # loop. This is critical: a Wayland pipewire-screen-cast source may pop up the
@@ -484,7 +484,7 @@ if [[ -n "$OBS_CMD" ]]; then
         if ! pgrep -x "obs" > /dev/null && ! pgrep -f "com.obsproject.Studio" > /dev/null; then
             break
         fi
-        STATUS=$(python3 "/home/pedro/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
+        STATUS=$(python3 "/home/xenna/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
         if [[ "$STATUS" == "active" ]]; then
             RECORDING_ACTIVE=1
             break
@@ -512,7 +512,7 @@ if [[ -n "$OBS_CMD" ]]; then
         if ! pgrep -x "obs" > /dev/null && ! pgrep -f "com.obsproject.Studio" > /dev/null; then
             break
         fi
-        STATUS=$(python3 "/home/pedro/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
+        STATUS=$(python3 "/home/xenna/.config/quickshell/ii/scripts/videos/obs_control.py" status 2>/dev/null)
         if [[ "$STATUS" != "active" ]]; then
             # Recording stopped. Give OBS a moment to flush the file, then close it.
             sleep 1

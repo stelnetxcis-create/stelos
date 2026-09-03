@@ -455,8 +455,7 @@ ContentPage {
                         chipText: {
                             const label = (page.activeFork === "stelos" || page.activeFork === "mine") ? "StelOS"
                                        : page.activeFork === "end4" ? "end-4"
-                                       : page.activeFork === "vynx" || page.activeFork === "upstream"
-                                         ? "ii-vynx" : (page.activeFork || "fork");
+                                         : (page.activeFork || "fork");
                             return label;
                         }
                         chipColor: Appearance.colors.colSecondaryContainer
@@ -516,8 +515,7 @@ ContentPage {
                                 return Translation.tr("Updating…");
                             const label = (page.activeFork === "stelos" || page.activeFork === "mine") ? "StelOS"
                                        : page.activeFork === "end4" ? "end-4"
-                                       : page.activeFork === "vynx" || page.activeFork === "upstream"
-                                         ? "ii-vynx" : (page.activeFork || "fork");
+                                         : (page.activeFork || "fork");
                             return Translation.tr("Update ") + label + " @ " + page.activeBranch;
                         }
                         font.pixelSize: Appearance.font.pixelSize.normal
@@ -530,6 +528,45 @@ ContentPage {
                     onClicked: {
                         page.runAction("update", ["update", "--yes", "--keep-config",
                             Config.options.update.replaceHyprConfig ? "--hypr" : "--no-hypr"]);
+                    }
+                }
+
+                // Sync Xenna's Work — pulls the latest source-side work into
+                // StelOS and reapplies the rebrand. Only meaningful on the
+                // StelOS source itself.
+                RippleButton {
+                    id: syncBtn
+                    visible: page.activeFork === "stelos" || page.activeFork === "mine"
+                    Layout.preferredWidth: 56
+                    Layout.preferredHeight: 48
+                    buttonRadius: Appearance.rounding.large
+                    colBackground: Appearance.colors.colTertiaryContainer
+                    colBackgroundHover: Appearance.colors.colTertiaryContainer
+                    colRipple: Appearance.colors.colTertiary
+
+                    contentItem: MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: (actionProc.running && actionProc.mode === "sync") ? "sync" : "auto_awesome"
+                        iconSize: 22
+                        color: Appearance.colors.colOnTertiaryContainer
+                        fill: 1
+
+                        RotationAnimation on rotation {
+                            running: actionProc.running && actionProc.mode === "sync"
+                            from: 0
+                            to: 360
+                            duration: 1200
+                            loops: Animation.Infinite
+                        }
+                    }
+                    StyledToolTip {
+                        text: (actionProc.running && actionProc.mode === "sync")
+                            ? Translation.tr("Syncing Xenna's work…")
+                            : Translation.tr("Sync Xenna's Work")
+                    }
+                    enabled: !actionProc.running
+                    onClicked: {
+                        page.runAction("sync", ["sync"]);
                     }
                 }
 
@@ -874,7 +911,7 @@ ContentPage {
                 materialIcon: "info"
                 text: Translation.tr("Switching forks replaces your ii folder. You'll lose these visual buttons until you return.\n\n" +
                                      "To return/switch via CLI, run:\n" +
-                                     "  vynx fork stelos\n\n" +
+                                     "  ii-stelnet fork stelos\n\n" +
                                      "Or run the setup script directly:\n" +
                                      "  ~/.local/share/ii-stelnet/setup-ii-stelnet.sh switch --fork stelos\n\n" +
                                      "Useful subcommands and flags:\n" +
