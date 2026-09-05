@@ -124,27 +124,22 @@ BACKUPS_TO_KEEP=3
 
 # ── Fork presets ─────────────────────────────────────────────────────────────
 declare -A PRESET_URLS=(
-    ["stelos"]="https://github.com/P3DROVFX/ii-p3drovfx"
-    ["mine"]="https://github.com/P3DROVFX/ii-p3drovfx"
+    ["stelos"]="https://github.com/stelnetxcis-create/stelos"
+    ["mine"]="https://github.com/stelnetxcis-create/stelos"
     ["end4"]="https://github.com/end-4/dots-hyprland"
-    ["vynx"]="https://github.com/vaguesyntax/ii-vynx"
-    ["upstream"]="https://github.com/vaguesyntax/ii-vynx"
 )
 declare -A PRESET_BRANCHES=(
     ["stelos"]="dev"
     ["mine"]="dev"
     ["end4"]="main"
-    ["vynx"]="main"
-    ["upstream"]="main"
 )
 # Canonical id per URL, so aliases collapse to one name in the UI and state files.
 declare -A PRESET_CANONICAL=(
-    ["https://github.com/P3DROVFX/ii-p3drovfx"]="stelos"
+    ["https://github.com/stelnetxcis-create/stelos"]="stelos"
     ["https://github.com/end-4/dots-hyprland"]="end4"
-    ["https://github.com/vaguesyntax/ii-vynx"]="vynx"
 )
-FALLBACK_URL="https://github.com/P3DROVFX/ii-p3drovfx"
-FALLBACK_BRANCH="main"
+FALLBACK_URL="https://github.com/stelnetxcis-create/stelos"
+FALLBACK_BRANCH="dev"
 
 # Files carried across a replace, relative to the Quickshell config dir.
 PROTECTED_PATTERNS=(
