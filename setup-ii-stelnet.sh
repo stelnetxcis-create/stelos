@@ -2095,18 +2095,42 @@ cmd_sync() {
 
     local script_dir
     script_dir="$(cd -P "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" >/dev/null 2>&1 && pwd)"
-    local sync_script="$script_dir/sync-tooling/sync-from-xenna.sh"
 
-    if [[ ! -f "$sync_script" ]]; then
-        ui_fail "Sync tooling not found" "$(tilde "$sync_script")"
-        ui_note "This feature ships with the StelOS repo checkout, not the installed mirror."
-        ui_note "Run it from a full clone: cd ~/stelos-repo && bash sync-tooling/sync-from-xenna.sh"
+    # The sync script needs a real git working tree (a proper `.git` folder)
+    # to fetch/merge into — the installed mirror at ~/.local/share/ii-stelnet
+    # is a plain file copy, never a git clone, so running it there always
+    # fails with "not a git repository". Search known real-clone locations
+    # instead of assuming $script_dir is one.
+    local candidates=(
+        "$script_dir"
+        "$HOME/stelos-repo"
+        "$HOME/Downloads/stelos"
+        "$HOME/dotfiles"
+    )
+    local repo_dir=""
+    for c in "${candidates[@]}"; do
+        if [[ -f "$c/sync-tooling/sync-from-xenna.sh" ]] && git -C "$c" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            repo_dir="$c"
+            break
+        fi
+    done
+
+    if [[ -z "$repo_dir" ]]; then
+        ui_fail "No real git checkout found for syncing" ""
+        ui_note "Sync needs a full 'git clone' of the StelOS repo (with a .git folder),"
+        ui_note "not the installed mirror at $(tilde "$script_dir"), which is a plain file copy."
+        ui_note ""
+        ui_note "One-time setup:"
+        ui_note "  git clone https://github.com/stelnetxcis-create/stelos.git ~/stelos-repo"
+        ui_note ""
+        ui_note "Then this button, and 'ii-stelnet sync', will find it automatically."
         exit 1
     fi
 
     ui_banner "StelNet" "sync"
     ui_step "Pulling in Xenna's latest work"
-    bash "$sync_script"
+    ui_note "Using checkout: $(tilde "$repo_dir")"
+    bash "$repo_dir/sync-tooling/sync-from-xenna.sh"
 }
 
 cmd_switch() {
